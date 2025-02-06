@@ -40,7 +40,7 @@ backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').o
 /**
  * Container
  */
-const containerGeometry = new THREE.BoxGeometry();
+const containerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32)
 const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 'white',
     roughness: 0,
@@ -71,40 +71,43 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
  * Fake Particles
  */
 
-// Geometry
-const geometry = new THREE.BoxGeometry()
+// // Geometry
+// const geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 64)
 
-// Texture
-const textureLoader = new THREE.TextureLoader();
-const textures = {
-    chili: textureLoader.load('./textures/chili.webp', texture => {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-    }),
-    oregano: textureLoader.load('./textures/oregano.webp', texture => {
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.RepeatWrapping;
-    })
-};
+// // Texture
+// const textureLoader = new THREE.TextureLoader();
+// const textures = {
+//     chili: textureLoader.load('./textures/chili.webp', texture => {
+//         texture.wrapS = THREE.RepeatWrapping;
+//         texture.wrapT = THREE.RepeatWrapping;
+//     }),
+//     oregano: textureLoader.load('./textures/oregano.webp', texture => {
+//         texture.wrapS = THREE.RepeatWrapping;
+//         texture.wrapT = THREE.RepeatWrapping;
+//     })
+// };
 
-// Material
-const material =     new THREE.ShaderMaterial
-({ 
-    vertexShader: fakeParticlesVertexShader, 
-    fragmentShader: fakeParticlesFragmentShader, 
-    uniforms: 
-    {
-    }
-})
+// // Material
+// const material =     new THREE.ShaderMaterial
+// ({ 
+//     vertexShader: fakeParticlesVertexShader, 
+//     fragmentShader: fakeParticlesFragmentShader, 
+//     uniforms: 
+//     {
+//         uTexture: new THREE.Uniform(textures.chili)
+//     },
+//     // wireframe: true
+// })
 
-const cube = new THREE.Mesh(geometry, material);
-cube.scale.set(0.999, 0.5, 0.999)
-cube.position.y =  ( cube.scale.y / 2 ) -0.5 + 0.001; 
-scene.add(cube)
+// const cylinder = new THREE.Mesh(geometry, material);
+// cylinder.scale.set(0.999, 0.5, 0.999)
+// cylinder.position.y =  ( cylinder.scale.y / 2 ) -0.5 + 0.001; 
+// scene.add(cylinder)
 
-// // Debug
-const fakeParticlesFolder = debug.addFolder('Fake Particles')
-fakeParticlesFolder.close()
+
+// // // Debug
+// const fakeParticlesFolder = debug.addFolder('Fake Particles')
+// fakeParticlesFolder.close()
 // fakeParticlesFolder.add(cube.scale, 'y').step(0.01).max(1).min(0.01).onChange((value) => { 
 //     cube.scale.y = value;
 //     cube.position.y =  ( cube.scale.y / 2 ) -0.5 + 0.001; 
@@ -195,7 +198,6 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
-
 
 /**
  * Animate

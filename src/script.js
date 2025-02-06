@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import GUI from 'lil-gui'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { GLTFLoader } from 'three/examples/jsm/Addons.js'
+import GUI from 'lil-gui'
 import fakeParticlesVertexShader from './shaders/fakeParticles/vertex.glsl'
 import fakeParticlesFragmentShader from './shaders/fakeParticles/fragment.glsl'
 import Particles from './particles.js'
@@ -22,9 +23,8 @@ const scene = new THREE.Scene()
  *
  * Environment
  */
-
-const loader = new RGBELoader()
-loader.load('./HDR/restaurant.hdr', (texture) => {
+const environmentloader = new RGBELoader()
+environmentloader.load('./HDR/restaurant.hdr', (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = texture;
 })
@@ -40,7 +40,7 @@ backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').o
 /**
  * Container
  */
-const containerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32)
+const containerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 64)
 const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 'white',
     roughness: 0,
@@ -52,12 +52,21 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     clearcoat: 0.1, // Add a small clearcoat for better reflections
     clearcoatRoughness: 0.1 // Slight roughness for clearcoat
 });
-const container = new THREE.Mesh(containerGeometry, glassMaterial);
-container.position.set(0, 0, 0)
-scene.add(container)
+
+// const container = new THREE.Mesh(containerGeometry, glassMaterial);
+
+// Add model
+const gltfLoader = new GLTFLoader()
+gltfLoader.load('./models/bottle.glb', (gltf) => {
+    console.log(gltf)
+    const container = gltf.scene;
+    container.position.set(0, 0, 0)
+    scene.add(container)
+})
 
 // Debug for glass material
 const bottleFolder = debug.addFolder('Bottle')
+bottleFolder.close()
 bottleFolder.addColor(glassMaterial, 'color').name('Color')
 bottleFolder.add(glassMaterial, 'roughness').min(0).max(1).step(0.01).name('Roughness')
 bottleFolder.add(glassMaterial, 'metalness').min(0).max(1).step(0.01).name('Roughness')
@@ -129,7 +138,8 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
 /**
  * Particles
  */
-// const particles = new Particles()
+// const particles = new Particles(bottleFolder.geometry)
+// particles.position.set(0, 0, 0)
 // scene.add(particles)
 
 // const parameters = {}

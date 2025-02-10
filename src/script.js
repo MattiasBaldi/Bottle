@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
-import { GLTFLoader } from 'three/examples/jsm/Addons.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
 import fakeParticlesVertexShader from './shaders/fakeParticles/vertex.glsl'
 import fakeParticlesFragmentShader from './shaders/fakeParticles/fragment.glsl'
@@ -40,7 +40,7 @@ backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').o
 /**
  * Container
  */
-const containerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 64)
+
 const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 'white',
     roughness: 0,
@@ -53,15 +53,19 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     clearcoatRoughness: 0.1 // Slight roughness for clearcoat
 });
 
-// const container = new THREE.Mesh(containerGeometry, glassMaterial);
+const containerGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 64)
+const container = new THREE.Mesh(containerGeometry, glassMaterial);
 
 // Add model
 const gltfLoader = new GLTFLoader()
 gltfLoader.load('./models/bottle.glb', (gltf) => {
     console.log(gltf)
-    const container = gltf.scene;
-    container.position.set(0, 0, 0)
-    scene.add(container)
+    const gltfscene = gltf.scene;
+    gltfscene.position.set(0, 0, 0)
+    const model = gltfscene.children[0]
+    console.log(container)
+    model.material = glassMaterial
+    scene.add(gltfscene)
 })
 
 // Debug for glass material
@@ -117,21 +121,21 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
 // // // Debug
 // const fakeParticlesFolder = debug.addFolder('Fake Particles')
 // fakeParticlesFolder.close()
-// fakeParticlesFolder.add(cube.scale, 'y').step(0.01).max(1).min(0.01).onChange((value) => { 
-//     cube.scale.y = value;
-//     cube.position.y =  ( cube.scale.y / 2 ) -0.5 + 0.001; 
-//     cube.material.map.wrapS = THREE.RepeatWrapping;
-//     cube.material.map.wrapT = THREE.RepeatWrapping;
-//     cube.material.map.repeat.set(1, value);
-//     cube.material.needsUpdate = true;
+// fakeParticlesFolder.add(cylinder.scale, 'y').step(0.01).max(1).min(0.01).onChange((value) => { 
+//     cylinder.scale.y = value;
+//     cylinder.position.y =  ( cylinder.scale.y / 2 ) -0.5 + 0.001; 
+//     cylinder.material.map.wrapS = THREE.RepeatWrapping;
+//     cylinder.material.map.wrapT = THREE.RepeatWrapping;
+//     cylinder.material.map.repeat.set(1, value);
+//     cylinder.material.needsUpdate = true;
 // }).name('Fill')
 // fakeParticlesFolder.add({ material: 'chili' }, 'material', ['chili', 'oregano']).onChange(value => {
 //     if (value) {
-//         cube.material.map = textures[value];
-//         cube.material.needsUpdate = true;
+//         cylinder.material.map = textures[value];
+//         cylinder.material.needsUpdate = true;
 //     } else {
-//         cube.material.map = null;
-//         cube.material.needsUpdate = true;
+//         cylinder.material.map = null;
+//         cylinder.material.needsUpdate = true;
 //     }
 // });
 

@@ -27,6 +27,7 @@ const environmentloader = new RGBELoader()
 environmentloader.load('./HDR/restaurant.hdr', (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = texture;
+    scene.background = new THREE.Color('#ffffff')
 })
 
 // Add a toggle for the background in the debug GUI
@@ -36,6 +37,26 @@ const backgroundParams = { background: false };
 backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').onChange((value) => {
     scene.background = value ? scene.environment : null;
 });
+
+
+
+// CUBE TEXTURE LOADER
+
+// LDR cube texture
+// const cubeTextureLoader = new THREE.CubeTextureLoader()
+// const environmentMap = cubeTextureLoader.load([
+//     'Environment/CubeMap/restaurant/px.png',
+//     'Environment/CubeMap/restaurant/nx.png',
+//     'Environment/CubeMap/restaurant/py.png',
+//     'Environment/CubeMap/restaurant/ny.png',
+//     'Environment/CubeMap/restaurant/pz.png',
+//     'Environment/CubeMap/restaurant/nz.png',
+// ])
+
+// scene.background = new THREE.Color('#ffffff')
+// scene.environment = environmentMap
+// scene.environmentIntensity = 1; 
+
 
 /**
  * Container
@@ -196,8 +217,8 @@ window.addEventListener('resize', () =>
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
 camera.position.x = 1
-camera.position.y = 0
-camera.position.z = 1
+camera.position.y = 4
+camera.position.z = 3
 scene.add(camera)
 
 // Controls

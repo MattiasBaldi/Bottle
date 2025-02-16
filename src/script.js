@@ -111,7 +111,8 @@ controls.enableDamping = true
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
-    canvas: canvas
+    canvas: canvas,
+    antialias: false
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
@@ -192,26 +193,52 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
     //  */
 
     jar.geometry.computeBoundingBox();
+    const yGroups = [];
     const minY = jar.geometry.boundingBox.min.y;
     const maxY = jar.geometry.boundingBox.max.y;
     const height = maxY - minY; 
 
+    // Group vertices into groups based on their y-coordinate
+    for (let i = 0; i < jar.geometry.attributes.position.count; i++) {
+        const vertex = new THREE.Vector3().fromBufferAttribute(jar.geometry.attributes.position, i);
 
-    console.log('minY:', minY)
-    console.log('maxY:', maxY)
-    console.log('totalHeight:', height)
+        const y = vertex.y.toFixed(2); // Use a fixed precision to avoid floating-point issues
+        if (!yGroups[y]) {
+        yGroups[y] = [];
+        }
+        yGroups[y].push(vertex);
+    }
 
     let points = null;
     let topSurface = null; 
+    let mergedMesh = null; 
 
     function addPointsToJar(container, startPercentage, endPercentage) {
     // Remove existing points if they exist
-    if (points) {
+    if (points) 
+    {
         scene.remove(points);
         points.geometry.dispose();
         points.material.dispose();
         points = null;
     }
+
+    if (mergedMesh) 
+        {
+            mergedMesh.geometry.dispose();
+            mergedMesh.material.dispose();
+            mergedMesh = null;
+        }
+
+    // if(topSurface)
+    // {
+    //     scene.remove(mesh)
+    //     mesh.geometry.dispose() 
+    //     mesh.material.dispose() 
+    //     topSurface.geometry.dispose();
+    //     topSurface = null; 
+    // }
+    
     
     // Define the threshold for the y value (startPercentage to endPercentage of the points position in the jar's height)
     const startY = minY + height * startPercentage * 0.01;
@@ -220,110 +247,106 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
     // /**
     //  * Top Surface
     //  */
-        const yGroups = [];
-        const vertices = [];
-        let closestYGroupIndex = null;
-        let closestDistance = Infinity;
+    topSurface  = 
+    {
+        vertices: [],
+        geometry: null, 
+    }
 
-        // Group vertices by their y-coordinate
-        for (let i = 0; i < container.geometry.attributes.position.count; i++) {
-            const vertex = new THREE.Vector3().fromBufferAttribute(container.geometry.attributes.position, i);
+    const vertices = [];
+    let geometry = null; 
 
-            const y = vertex.y.toFixed(2); // Use a fixed precision to avoid floating-point issues
-            if (!yGroups[y]) {
-            yGroups[y] = [];
-            }
-            yGroups[y].push(vertex);
+    let closestYGroupIndex = null;
+    let closestDistance = Infinity;
+
+    // Store the yGroup index that is closest to the endY
+    for (let y in yGroups) {
+        const distance = Math.abs(endY - y);
+        if (distance < closestDistance) {
+        closestDistance = distance;
+        closestYGroupIndex = y;
         }
+    }
 
-        // Find the yGroup index that is closest to the endY
-        for (let y in yGroups) {
-            const distance = Math.abs(endY - y);
-            if (distance < closestDistance) {
-            closestDistance = distance;
-            closestYGroupIndex = y;
-            }
-        }
+    // Add vertices of the closest group to the vertices array
+    yGroups[closestYGroupIndex].forEach(vertex => {
+        vertex.y = endY; // Update the y-coordinate to match the sides
+        vertices.push(vertex)
+    });
 
-        // Add vertices of the closest group to the vertices array
-        yGroups[closestYGroupIndex].forEach(vertex => {
-            vertex.y = endY; // Update the y-coordinate to match the sides
-            vertices.push(vertex)
-        });
+    // Order vertices counterclockwise
+    vertices.sort((a, b) => Math.atan2(a.z, a.x) - Math.atan2(b.z, b.x));
 
-        // Create geometry from the vertices array
-        const centerPoint = new THREE.Vector3(0, endY, 0); // Center point at (0, endY, 0)
-        vertices.push(centerPoint); // Add the center point to the vertices array
-        const geometry = new THREE.BufferGeometry().setFromPoints(vertices);
-        
-        // Create faces using the center point
-        const indices = [];
-        for (let i = 0; i < vertices.length - 1; i++) {
-            indices.push(i, (i + 1) % (vertices.length - 1), vertices.length - 1);
-        }
-        geometry.setIndex(indices);
-        geometry.computeVertexNormals();
+    // Create a shape and add vertices
+    const shape = new THREE.Shape();
+    shape.moveTo(vertices[0].z, vertices[0].x);
+    for (let i = 1; i < vertices.length; i++) {
+        shape.lineTo(vertices[i].z, vertices[i].x);
+    }
+    shape.lineTo(vertices[0].z, vertices[0].x); // Close the shape
 
-        // Create mesh & points for visualization
-        const pointGeometry = new THREE.BufferGeometry().setFromPoints(vertices);
-        const pointMaterial = new THREE.PointsMaterial({ color: 'green', size: 0.05 });
-        const point = new THREE.Points(pointGeometry, pointMaterial);
-        scene.add(point);
+    // Add geometry
+    const topSurfaceYPosition = endY - 0.001; // Added small offset so it never extends the endY
+    topSurface.geometry = new THREE.ShapeGeometry(shape);
+    topSurface.geometry.rotateX(Math.PI / -2); // Rotate the geometry 90 degrees around the X axis
+    topSurface.geometry.translate(0, topSurfaceYPosition, 0); 
 
-        const material = new THREE.MeshBasicMaterial({ color: 'green', side: THREE.DoubleSide });
-        const topSurface = new THREE.Mesh(geometry, material);
-        topSurface.material.wireframe = false;
-        scene.add(topSurface);
+    // Create mesh & points for visualization
+    // const pointGeometry = new THREE.BufferGeometry().setFromPoints(vertices);
+    // const pointMaterial = new THREE.PointsMaterial({ color: 'green', size: 0.05 });
+    // const point = new THREE.Points(pointGeometry, pointMaterial);
+    // scene.add(point);
+
+    // const material = new THREE.MeshBasicMaterial({ color: 'green', side: THREE.DoubleSide });
+    // const topSurface = new THREE.Mesh(geometry, material);
+    // topSurface.material.wireframe = true;
+    // scene.add(topSurface);
 
     // Merge top and side geometry
-    const ensureSameAttributes = (geometry1, geometry2) => {
-        const attributes1 = geometry1.attributes;
-        const attributes2 = geometry2.attributes;
-
-        for (const key in attributes1) {
-            if (!attributes2[key]) {
-                attributes2[key] = new THREE.BufferAttribute(new Float32Array(attributes1[key].array.length), attributes1[key].itemSize);
-            }
-        }
-
-        for (const key in attributes2) {
-            if (!attributes1[key]) {
-                attributes1[key] = new THREE.BufferAttribute(new Float32Array(attributes2[key].array.length), attributes2[key].itemSize);
-            }
-        }
-    };
-    ensureSameAttributes(container.geometry, geometry);
-    
-    const mergedGeometry = BufferGeometryUtils.mergeGeometries([container.geometry, geometry]);
-    const mesh = new THREE.Mesh(mergedGeometry, undefined)
+    const mergedGeometry = BufferGeometryUtils.mergeGeometries([container.geometry, topSurface.geometry]);
+    mergedMesh = new THREE.Mesh(mergedGeometry, new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+    // scene.add(mesh)
 
     // Begin the sampler
-    const sampler = new MeshSurfaceSampler(mesh).build();
+    const sampler = new MeshSurfaceSampler(mergedMesh).build();
     const pointsGeometry = new THREE.BufferGeometry();
-    const count = 1000000; // Number of points to generate
+    const count = 100000; // Number of points to generate
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3); // Array to store colors
     const position = new THREE.Vector3();
     const normal = new THREE.Vector3();
-    const pointsMaterial = new THREE.PointsMaterial({ size: 0.01, vertexColors: true });    
+    const pointsMaterial = new THREE.PointsMaterial({ size: 0.04, vertexColors: true });    
 
     // Sample randomly from the surface, generating points on the jar geometry
     let sampledCount = 0;
+    let topSurfacePoints = null; 
     for (let i = 0; i < count; i++) {
         sampler.sample(position, normal);
 
         // Only add points on y threshold and ensure they are inside the jar
         if (position.y >= startY && position.y <= endY) {    
             
-            // Calculate the offset to ensure points are inside the mesh
-            position.addScaledVector(normal, -0.01);
+            // Set position
+            position.multiplyScalar(0.97); // Offset to fit inside jar
             positions.set([position.x, position.y, position.z], sampledCount * 3);
 
             // Randomize colors
             colors.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
 
             sampledCount++;
+
+                // Add points at the top surface position to the topSurfacePoints variable
+                if (position.y === topSurfaceYPosition) {
+                if (!topSurfacePoints) {
+                topSurfacePoints = [];
+                }
+                topSurfacePoints.push(position.clone());
+                }
+                    
         }
+
+     
+         
     }
 
     // /**
@@ -337,7 +360,7 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
     scene.add(points);
     }
 
-    addPointsToJar(jar, 0, 40);
+    addPointsToJar(jar, 0, 32);
 
     // Debug 
     const pointsFolder = debug.addFolder('Points');

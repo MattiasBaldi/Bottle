@@ -42,24 +42,6 @@ backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').o
 });
 
 
-
-// CUBE TEXTURE LOADER
-
-// LDR cube texture
-// const cubeTextureLoader = new THREE.CubeTextureLoader()
-// const environmentMap = cubeTextureLoader.load([
-//     'Environment/CubeMap/restaurant/px.png',
-//     'Environment/CubeMap/restaurant/nx.png',
-//     'Environment/CubeMap/restaurant/py.png',
-//     'Environment/CubeMap/restaurant/ny.png',
-//     'Environment/CubeMap/restaurant/pz.png',
-//     'Environment/CubeMap/restaurant/nz.png',
-// ])
-
-// scene.background = new THREE.Color('#ffffff')
-// scene.environment = environmentMap
-// scene.environmentIntensity = 1; 
-
 /**
  * Sizes
  */
@@ -103,13 +85,6 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
 
-/**
- * Add group
- */
-
-const group = new THREE.Group()
-scene.add(group)
-group.scale.set(1, 1, 1)
 
 /**
  * Load model
@@ -173,40 +148,22 @@ bottleFolder.add(glassMaterial, 'envMapIntensity').min(0).max(10).step(0.1).name
 bottleFolder.add(glassMaterial, 'clearcoat').min(0).max(1).step(0.01).name('Clearcoat')
 bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).name('Clearcoat Roughness')
 
-
-
-
 // Compute height
 jar.geometry.computeBoundingBox();
 const minY = jar.geometry.boundingBox.min.y;
 const maxY = jar.geometry.boundingBox.max.y;
 const height = maxY - minY; 
 
-const topSurface = new TopSurface()
-
 // Material
 const pointsMaterial = new THREE.PointsMaterial({ size: 0.04, vertexColors: true });
-const shaderMaterial = new THREE.ShaderMaterial
-({
-    vertexShader: particlesVertexShader, 
-    fragmentShader: particlesFragmentShader,
-    uniforms:
-    {
-        uResolution: new THREE.Uniform(new THREE.Vector2(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)),
-        uSize: new THREE.Uniform(0.1),
 
-    },
-    // blending: THREE.AdditiveBlending, 
-    depthWrite: true,
-})
-
-// /**
-//  * Mesh Sampler
-//  */
+// Fill
+const fill = {}
+let topSurface = null; 
 let points = null;
-let mergedMesh = null; 
 
 function addPointsToJar(container, startPercentage, endPercentage) {
+
 // Remove existing points if they exist
 if (points) 
 {
@@ -216,80 +173,77 @@ if (points)
     points = null;
 }
 
-if (mergedMesh) 
+if (topSurface) 
     {
-        mergedMesh.geometry.dispose();
-        mergedMesh.material.dispose();
-        mergedMesh = null;
+        if(topSurface.points)
+        {
+        scene.remove(topSurface.points);
+        topSurface.points.geometry.dispose()
+        topSurface.points.material.dispose()
+        }
+        topSurface.geometry.dispose()
+        topSurface.material.dispose()
+        topSurface = null; 
     }
 
-if(topSurface)
-{
-    topSurface.dispose()
-}
-
-// Define the threshold for the y value (startPercentage to endPercentage of the points position in the jar's height)
+// Define threshold
 const startY = minY + height * startPercentage * 0.01;
 const endY = minY + height * endPercentage * 0.01;
 
-// /**
-//  * Top Surface
-//  */
-topSurface.createGeometry(container, endY); 
+// topSurface
+topSurface = new TopSurface(jar, endY) // Creates a topsurface class
 
-// Merge geometries
-const mergedGeometry = BufferGeometryUtils.mergeGeometries([container.geometry, topSurface.geometry]);
-mergedMesh = new THREE.Mesh(mergedGeometry, new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
-// scene.add(mesh)
+// Create topsurface mesh
+function generatePoints(mesh, count, startY, endY) {
+    // Begin the sampler
+    const sampler = new MeshSurfaceSampler(mesh).build();
+    const pointsGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3); // Array to store colors
+    const sizes = new Float32Array(count * 3);
+    const size = new THREE.Vector3();
+    const position = new THREE.Vector3();
+    const normal = new THREE.Vector3();
 
-// Begin the sampler
-const sampler = new MeshSurfaceSampler(mergedMesh).build();
-const pointsGeometry = new THREE.BufferGeometry();
-const count = 100000; // Number of points to generate
-const positions = new Float32Array(count * 3);
-const colors = new Float32Array(count * 3); // Array to store colors
-const sizes = new Float32Array(count * 3);
-const size = new THREE.Vector3();
-const position = new THREE.Vector3();
-const normal = new THREE.Vector3();
+    // Sample randomly from the surface, generating points on the jar geometry
+    let sampledCount = 0;
+    for (let i = 0; i < count; i++) {
+        sampler.sample(position, normal);
 
-// Sample randomly from the surface, generating points on the jar geometry
-let sampledCount = 0;
-for (let i = 0; i < count; i++) {
-    sampler.sample(position, normal);
+        // Only add points on y threshold and ensure they are inside the jar
+        if (position.y >= startY && position.y <= endY) {    
+            
+            // Set position
+            position.multiplyScalar(0.97); // Offset to fit inside jar
+            positions.set([position.x, position.y, position.z], sampledCount * 3);
+            sizes.set([size.x, size.y, size.z], sampledCount * 3);
 
-    // Only add points on y threshold and ensure they are inside the jar
-    if (position.y >= startY && position.y <= endY) {    
-        
-        // Set position
-        position.multiplyScalar(0.97); // Offset to fit inside jar
-        positions.set([position.x, position.y, position.z], sampledCount * 3);
-        sizes.set([size.x, size.y, size.z], sampledCount * 3);
-        
+            // Randomize colors
+            colors.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
 
-        // Randomize colors
-        colors.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
-
-        sampledCount++;
-                
+            sampledCount++;
+        }
+            
     }
-        
+
+    // Adjust arrays to the actual number of sampled points
+    const adjustedPositions = positions.subarray(0, sampledCount * 3);
+    const adjustedSizes = sizes.subarray(0, sampledCount * 3);
+    const adjustedColors = colors.subarray(0, sampledCount * 3);
+    pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
+    pointsGeometry.setAttribute('color', new THREE.BufferAttribute(adjustedColors, 3));
+    pointsGeometry.setAttribute('aSize', new THREE.BufferAttribute(adjustedSizes, 3));
+    points = new THREE.Points(pointsGeometry, pointsMaterial);
+    return points; 
 }
 
-// /**
-//  * Adding Points
-//  */
-const adjustedPositions = positions.subarray(0, sampledCount * 3);
-const adjustedSizes = sizes.subarray(0, sampledCount * 3);
-const adjustedColors = colors.subarray(0, sampledCount * 3);
-pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
-pointsGeometry.setAttribute('color', new THREE.BufferAttribute(adjustedColors, 3));
-pointsGeometry.setAttribute('aSize', new THREE.BufferAttribute(adjustedSizes, 3));
-points = new THREE.Points(pointsGeometry, shaderMaterial);
-scene.add(points);
+// Generate points
+topSurface.points = generatePoints(topSurface, 10000, startY, endY)
+points = generatePoints(container, 100000, startY, endY);
+scene.add(topSurface.points, points)
 }
 
-addPointsToJar(jar, 0, 32);
+addPointsToJar(jar, 0, 45);
 
 // Debug 
 const pointsFolder = debug.addFolder('Points');
@@ -306,7 +260,6 @@ pointsFolder.add(pointsParams, 'uSize').min(0.001).max(0.1).step(0.001).name('Po
         points.material.uniforms.uSize.value = value;
     }
 });
-
 
 })
 

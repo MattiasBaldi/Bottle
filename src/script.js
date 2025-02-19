@@ -73,18 +73,37 @@ cameraFolder.add(camera, 'fov').min(1).max(180).step(1).name('Field of View').on
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
+// controls.enableDamping = true
+// controls.minDistance = 3.5; 
+// controls.maxDistance = 4;
+// controls.enablePan = false; 
+
+// // Limit controls to horizontal rotation only
+// controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below the object
+// controls.minPolarAngle = Math.PI / 2; // Prevent camera from going above the object
+
+// Debug for max zoom
+const zoomFolder = debug.addFolder('Zoom');
+zoomFolder.close();
+zoomFolder.add(controls, 'minDistance').min(1).max(10).step(1).name('Min Zoom');
+zoomFolder.add(controls, 'maxDistance').min(1).max(10).step(1).name('Max Zoom');
+
 
 /**
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
-    antialias: false
+    antialias: true
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
 
+/**
+ * Load Texture
+ */
+const textureLoader = new THREE.TextureLoader()
+const particlesTexture = textureLoader.load('./textures/particles/pepper.png')
 
 /**
  * Load model
@@ -102,9 +121,10 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     opacity: 1,
     transparent: true,
     envMapIntensity: 1.0, // Ensure environment map intensity is set
-    clearcoat: 0.1, // Add a small clearcoat for better reflections
-    clearcoatRoughness: 0.1, // Slight roughness for clearcoat
-    side: THREE.DoubleSide
+    // clearcoat: 0.1, // Add a small clearcoat for better reflections
+    // clearcoatRoughness: 0.1, // Slight roughness for clearcoat
+    side: THREE.DoubleSide,
+    depthWrite: false, 
 });
 
 const gltfscene = gltf.scene;
@@ -155,12 +175,24 @@ const maxY = jar.geometry.boundingBox.max.y;
 const height = maxY - minY; 
 
 // Material
-const pointsMaterial = new THREE.PointsMaterial({ size: 0.04, vertexColors: true });
+const pointsMaterial = new THREE.PointsMaterial
+({ 
+    size: 0.06,
+    map: particlesTexture,
+    transparent: true,
+    alphaMap: particlesTexture,
+    sizeAttenuation: true,
+    depthWrite: false,
+    vertexColors: true,
+    // side: THREE.DoubleSide
+    // color: 'red'
+});
 
 // Fill
 const fill = {}
 let topSurface = null; 
 let points = null;
+let count = 100000; 
 
 function addPointsToJar(container, startPercentage, endPercentage) {
 
@@ -200,14 +232,13 @@ function generatePoints(mesh, count, startY, endY) {
     const pointsGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3); // Array to store colors
-    const sizes = new Float32Array(count * 3);
-    const size = new THREE.Vector3();
     const position = new THREE.Vector3();
     const normal = new THREE.Vector3();
 
     // Sample randomly from the surface, generating points on the jar geometry
     let sampledCount = 0;
     for (let i = 0; i < count; i++) {
+        const i3 = i * 3
         sampler.sample(position, normal);
 
         // Only add points on y threshold and ensure they are inside the jar
@@ -216,30 +247,40 @@ function generatePoints(mesh, count, startY, endY) {
             // Set position
             position.multiplyScalar(0.97); // Offset to fit inside jar
             positions.set([position.x, position.y, position.z], sampledCount * 3);
-            sizes.set([size.x, size.y, size.z], sampledCount * 3);
-
-            // Randomize colors
-            colors.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
-
+            
+      
             sampledCount++;
         }
+
+              // colors
+              if( i % 10)
+                {
+                colors[ i3 + 0 ] = 1
+                colors[ i3 + 1] = 0
+                colors[ i3 + 2] = 0
+                }
+            
+                else 
+                {
+                colors[i3 + 0] = 1
+                colors[i3 + 1] = 0.4
+                colors[i3 + 2] = 0
+                    
+                }
             
     }
 
     // Adjust arrays to the actual number of sampled points
     const adjustedPositions = positions.subarray(0, sampledCount * 3);
-    const adjustedSizes = sizes.subarray(0, sampledCount * 3);
-    const adjustedColors = colors.subarray(0, sampledCount * 3);
     pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
-    pointsGeometry.setAttribute('color', new THREE.BufferAttribute(adjustedColors, 3));
-    pointsGeometry.setAttribute('aSize', new THREE.BufferAttribute(adjustedSizes, 3));
+    pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     points = new THREE.Points(pointsGeometry, pointsMaterial);
     return points; 
 }
 
 // Generate points
-topSurface.points = generatePoints(topSurface, 10000, startY, endY)
-points = generatePoints(container, 100000, startY, endY);
+topSurface.points = generatePoints(topSurface, count * 0.1, startY, endY)
+points = generatePoints(container, count, startY, endY);
 scene.add(topSurface.points, points)
 }
 
@@ -248,18 +289,23 @@ addPointsToJar(jar, 0, 45);
 // Debug 
 const pointsFolder = debug.addFolder('Points');
 pointsFolder.close();
-const pointsParams = { startPercentage: 0, endPercentage: 30, uSize: 0.01 };
+const pointsParams = { startPercentage: 0, endPercentage: 30, count: 100000};
 pointsFolder.add(pointsParams, 'startPercentage').min(0).max(100).step(1).name('Start Percentage').onChange(() => {
     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
 pointsFolder.add(pointsParams, 'endPercentage').min(0).max(100).step(1).name('End Percentage').onChange(() => {
     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
-pointsFolder.add(pointsParams, 'uSize').min(0.001).max(0.1).step(0.001).name('Point Size').onChange((value) => {
-    if (points) {
-        points.material.uniforms.uSize.value = value;
-    }
+pointsFolder.add(pointsMaterial, 'size').min(0.001).max(1).step(0.001).name('Point Size')
+pointsFolder.add(pointsParams, 'count').min(1000).max(10000000).step(1000).name('Point Count').onChange((value) => {
+    count = value;
+    addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
+pointsFolder.addColor({ color: pointsMaterial.color.getHex() }, 'color').onChange((value) => {
+    pointsMaterial.color.set(value);
+});
+
+
 
 })
 

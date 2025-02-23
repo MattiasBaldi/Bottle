@@ -103,7 +103,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
  * Load Texture
  */
 const textureLoader = new THREE.TextureLoader()
-const particlesTexture = textureLoader.load('./textures/particles/pepper.png')
+const particlesTexture = textureLoader.load('./textures/particles/chili1.png')
 
 /**
  * Load model
@@ -258,14 +258,12 @@ function generatePoints(mesh, count, startY, endY) {
                 colors[ i3 + 0 ] = 1
                 colors[ i3 + 1] = 0
                 colors[ i3 + 2] = 0
-                }
-            
+                }            
                 else 
                 {
                 colors[i3 + 0] = 1
                 colors[i3 + 1] = 0.4
                 colors[i3 + 2] = 0
-                    
                 }
             
     }

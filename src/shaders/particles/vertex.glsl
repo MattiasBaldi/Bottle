@@ -3,8 +3,6 @@ uniform vec2 uResolution;
 
 attribute vec3 aRandomness;
 attribute float aSize;
-// attribute float aPosition;
-// attribute float aPosition;
 
 void main()
 {

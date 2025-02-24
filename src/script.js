@@ -61,16 +61,6 @@ camera.position.z = 4
 
 scene.add(camera)
 
-// Debug for camera position
-const cameraFolder = debug.addFolder('Camera');
-cameraFolder.close();
-cameraFolder.add(camera.position, 'x').min(-10).max(10).step(0.01).name('Camera X');
-cameraFolder.add(camera.position, 'y').min(-10).max(10).step(0.01).name('Camera Y');
-cameraFolder.add(camera.position, 'z').min(-10).max(10).step(0.01).name('Camera Z');
-cameraFolder.add(camera, 'fov').min(1).max(180).step(1).name('Field of View').onChange(() => {
-    camera.updateProjectionMatrix();
-});
-
 // Controls
 const controls = new OrbitControls(camera, canvas)
 // controls.enableDamping = true
@@ -81,13 +71,6 @@ const controls = new OrbitControls(camera, canvas)
 // // Limit controls to horizontal rotation only
 // controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below the object
 // controls.minPolarAngle = Math.PI / 2; // Prevent camera from going above the object
-
-// Debug for max zoom
-const zoomFolder = debug.addFolder('Zoom');
-zoomFolder.close();
-zoomFolder.add(controls, 'minDistance').min(1).max(10).step(1).name('Min Zoom');
-zoomFolder.add(controls, 'maxDistance').min(1).max(10).step(1).name('Max Zoom');
-
 
 /**
  * Renderer
@@ -139,19 +122,6 @@ scene.add(jar)
  * Helpers and Debug
  */
 
-// Normal viewer
-const normalHelper = new VertexNormalsHelper(jar, 0.2, 'green');
-normalHelper.visible = false; 
-scene.add(normalHelper);
-
-// Debug for normal viewer
-const normalFolder = debug.addFolder('Normals');
-normalFolder.close();
-const normalParams = { showNormals: false };
-normalFolder.add(normalParams, 'showNormals').name('Show Normals').onChange((value) => {
-    normalHelper.visible = value;
-});
-
 // Debug for glass material
 const bottleFolder = debug.addFolder('Bottle')
 bottleFolder.close()
@@ -187,6 +157,11 @@ const pointsMaterial = new THREE.PointsMaterial
     // side: THREE.DoubleSide
     // color: 'red'
 });
+
+const shaderMaterial = new THREE.ShaderMaterial({
+    vertexShader: particlesVertexShader, 
+    fragmentShader: particlesFragmentShader
+})
 
 // Fill
 const fill = {}
@@ -272,7 +247,7 @@ function generatePoints(mesh, count, startY, endY) {
     const adjustedPositions = positions.subarray(0, sampledCount * 3);
     pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
     pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    points = new THREE.Points(pointsGeometry, pointsMaterial);
+    points = new THREE.Points(pointsGeometry, shaderMaterial);
     return points; 
 }
 

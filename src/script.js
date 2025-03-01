@@ -144,30 +144,16 @@ const minY = jar.geometry.boundingBox.min.y;
 const maxY = jar.geometry.boundingBox.max.y;
 const height = maxY - minY; 
 
-// Material
-const pointsMaterial = new THREE.PointsMaterial
-({ 
-    size: 0.06,
-    map: particlesTexture,
-    transparent: true,
-    alphaMap: particlesTexture,
-    sizeAttenuation: true,
-    depthWrite: false,
-    vertexColors: true,
-    // side: THREE.DoubleSide
-    // color: 'red'
-});
-
-const shaderMaterial = new THREE.ShaderMaterial({
-    vertexShader: particlesVertexShader, 
-    fragmentShader: particlesFragmentShader
-})
-
 // Fill
 const fill = {}
+fill.pointSize = 30.0; 
+fill.colorOne = 'red'
+fill.colorTwo = 'yellow'
+
 let topSurface = null; 
 let points = null;
 let count = 100000; 
+
 
 function addPointsToJar(container, startPercentage, endPercentage) {
 
@@ -200,15 +186,104 @@ const endY = minY + height * endPercentage * 0.01;
 // topSurface
 topSurface = new TopSurface(jar, endY) // Creates a topsurface class
 
-// Create topsurface mesh
+
 function generatePoints(mesh, count, startY, endY) {
     // Begin the sampler
     const sampler = new MeshSurfaceSampler(mesh).build();
     const pointsGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3); // Array to store colors
+    const color = new THREE.Vector3();
     const position = new THREE.Vector3();
     const normal = new THREE.Vector3();
+
+    // Material
+    const material = new THREE.ShaderMaterial({
+
+        vertexShader: particlesVertexShader, 
+        fragmentShader: particlesFragmentShader,
+        uniforms: 
+        {
+            uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()),
+
+            // Colors
+            uColorOne: new THREE.Uniform(new THREE.Color(fill.colorOne)),
+            uColorTwo: new THREE.Uniform(new THREE.Color(fill.colorTwo)),
+            uColorThree: new THREE.Uniform(new THREE.Color(fill.colorThree)),
+
+            uSaturation: new THREE.Uniform(1.0),
+            uBrightness: new THREE.Uniform(1.0),
+            uContrast: new THREE.Uniform(1.0),
+
+            // Shapes
+            uShapeType: new THREE.Uniform(1.0), // Interpolates between triangles, squares and circles
+
+            /* 
+            float circle = smoothstep(0.5, 0.48, length(uv));
+            float square = 1.0;
+            float triangle = step(uv.y + 0.25, 0.866 * (0.5 - abs(uv.x)));
+
+            float shapeMix = smoothstep(0.0, 1.0, uShapeType); // Interpolates between shapes
+            float finalShape = mix(circle, square, shapeMix);
+            finalShape = mix(finalShape, triangle, smoothstep(1.0, 2.0, uShapeType));
+
+            if (finalShape < 0.5) discard;
+          
+            uTriangle: new THREE.Uniform(),
+            uTriangleSize: new THREE.Uniform(new THREE.Vector3), 
+
+            uSquare: new THREE.Uniform(),
+            uSquareSize: new THREE.Uniform(new THREE.Vector3), 
+            
+            uCircle: new THREE.Uniform(),
+            uCircleSize: new THREE.Uniform(new THREE.Vector3), 
+          
+            */
+
+            // Textures || Sprites
+            uTextureMix: new THREE.Uniform(),
+            uSprite: new THREE.Uniform(),
+            uTexture: new THREE.Uniform(),
+
+            // Variation
+            uScaleRandomness: new THREE.Uniform(),
+            uRotationRandomness: new THREE.Uniform(),
+
+            // Details
+            uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
+            uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
+            uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
+            uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
+
+            // Extra
+
+            // Granularity & Clumping
+            // uGranularity: Defines whether the spice is a fine powder or coarse (adjust particle size distribution).
+            // uClumping: Adjusts how particles stick together (use slight attraction forces).
+
+            // Aging & Environmental Effects
+            // uDryness: Controls how dusty or moist the spice looks (affects roughness and opacity).
+            // uDustiness: Adds a subtle overlay for aged or powdered spices.
+
+            // uJitter: Adds randomness to size and position to prevent uniform-looking particles.
+            // uSizeVariation: Adjusts particle sizes for a natural, uneven look.
+
+
+            /*
+            Performance Considerations
+            The biggest performance hits come from:
+
+            Textures: Large or multiple textures can slow rendering. Use smaller, compressed textures or a texture atlas.
+            Transparency & Blending: Overlapping semi-transparent particles require sorting, which is expensive.
+            Per-Pixel Computation: Complex fragment shader operations like noise functions, lighting, and procedural textures are costly.
+            Particle Count: More particles mean more draw calls. Batch rendering and instancing help.
+            High-Precision Math: Avoid excessive conditionals or loops in shaders.
+            */
+  
+        },
+        transparent: true,
+        depthWrite: false
+    })
 
     // Sample randomly from the surface, generating points on the jar geometry
     let sampledCount = 0;
@@ -219,41 +294,31 @@ function generatePoints(mesh, count, startY, endY) {
         // Only add points on y threshold and ensure they are inside the jar
         if (position.y >= startY && position.y <= endY) {    
             
-            // Set position
+            // Position
             position.multiplyScalar(0.97); // Offset to fit inside jar
             positions.set([position.x, position.y, position.z], sampledCount * 3);
-            
+     
+            // Color
+            color.lerp(fill.colorOne, fill.colorTwo, Math.random());
+            colors.set([color.r, color.g, color.b], sampledCount * 3);
       
             sampledCount++;
         }
-
-              // colors
-              if( i % 10)
-                {
-                colors[ i3 + 0 ] = 1
-                colors[ i3 + 1] = 0
-                colors[ i3 + 2] = 0
-                }            
-                else 
-                {
-                colors[i3 + 0] = 1
-                colors[i3 + 1] = 0.4
-                colors[i3 + 2] = 0
-                }
-            
     }
 
     // Adjust arrays to the actual number of sampled points
     const adjustedPositions = positions.subarray(0, sampledCount * 3);
     pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
     pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    points = new THREE.Points(pointsGeometry, shaderMaterial);
-    return points; 
+
+    return points = new THREE.Points(pointsGeometry, material);
+
 }
 
 // Generate points
 topSurface.points = generatePoints(topSurface, count * 0.1, startY, endY)
 points = generatePoints(container, count, startY, endY);
+console.log(points.geometry.attributes.color)
 scene.add(topSurface.points, points)
 }
 
@@ -263,21 +328,23 @@ addPointsToJar(jar, 0, 45);
 const pointsFolder = debug.addFolder('Points');
 pointsFolder.close();
 const pointsParams = { startPercentage: 0, endPercentage: 30, count: 100000};
+
 pointsFolder.add(pointsParams, 'startPercentage').min(0).max(100).step(1).name('Start Percentage').onChange(() => {
     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
+
 pointsFolder.add(pointsParams, 'endPercentage').min(0).max(100).step(1).name('End Percentage').onChange(() => {
     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
-pointsFolder.add(pointsMaterial, 'size').min(0.001).max(1).step(0.001).name('Point Size')
+
 pointsFolder.add(pointsParams, 'count').min(1000).max(10000000).step(1000).name('Point Count').onChange((value) => {
     count = value;
     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
 });
-pointsFolder.addColor({ color: pointsMaterial.color.getHex() }, 'color').onChange((value) => {
-    pointsMaterial.color.set(value);
-});
 
+pointsFolder.add(fill, 'pointSize').min(0.1).max(10).step(0.1).name('Point Size').onChange(() => {
+    addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
+});
 
 
 })
@@ -291,10 +358,6 @@ window.addEventListener('resize', () =>
         sizes.width = window.innerWidth
         sizes.height = window.innerHeight
         sizes.pixelRatio = Math.min(window.devicePixelRatio, 1)
-    
-        // Materials
-        if(points)
-            points.material.uniforms.uResolution.value.set(sizes.width * sizes.pixelRatio, sizes.height * sizes.pixelRatio)
     
         // Update camera
         camera.aspect = sizes.width / sizes.height

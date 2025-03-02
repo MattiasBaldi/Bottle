@@ -89,11 +89,40 @@ const textureLoader = new THREE.TextureLoader()
 const particlesTexture = textureLoader.load('./textures/particles/chili1.png')
 
 /**
- * Load model
+ * Load models
  */
-
 const gltfLoader = new GLTFLoader()
-gltfLoader.load('./models/bottle.glb', (gltf) => {
+let bottle = null; 
+let spice = null; 
+async function loadModels() {
+    const gltfLoader = new GLTFLoader();
+
+    const spicePromise = new Promise((resolve, reject) => {
+        gltfLoader.load('./models/spice.glb', (gltf) => {
+            resolve(gltf);
+        }, undefined, reject);
+    });
+
+    const bottlePromise = new Promise((resolve, reject) => {
+        gltfLoader.load('./models/bottle.glb', (gltf) => {
+            resolve(gltf);
+        }, undefined, reject);
+    });
+
+    try {
+        const [spiceGltf, bottleGltf] = await Promise.all([spicePromise, bottlePromise]);
+        spice = spiceGltf;
+        bottle = bottleGltf;
+        
+        // load experience
+        initExperience();
+    } catch (error) {
+        console.error('Error loading models:', error);
+    }
+}
+
+// init experience function
+function initExperience() {
 
 // Container
 const glassMaterial = new THREE.MeshPhysicalMaterial({
@@ -110,8 +139,7 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     depthWrite: false, 
 });
 
-const gltfscene = gltf.scene;
-const jar = gltfscene.children[0]
+const jar = bottle.scene.children[0]
 jar.scale.setScalar(1)
 jar.position.set(0, 0, 0)
 jar.material = glassMaterial
@@ -152,8 +180,8 @@ fill.colorTwo = 'yellow'
 
 let topSurface = null; 
 let points = null;
+let pointMesh = null;
 let count = 100000; 
-
 
 function addPointsToJar(container, startPercentage, endPercentage) {
 
@@ -185,7 +213,6 @@ const endY = minY + height * endPercentage * 0.01;
 
 // topSurface
 topSurface = new TopSurface(jar, endY) // Creates a topsurface class
-
 
 function generatePoints(mesh, count, startY, endY) {
     // Begin the sampler
@@ -311,14 +338,53 @@ function generatePoints(mesh, count, startY, endY) {
     pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
     pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    return points = new THREE.Points(pointsGeometry, material);
-
+    return points = new THREE.Points(pointsGeometry, material); // Points
 }
+
+function generateMeshes(mesh, count, startY, endY) {
+    const sampler = new MeshSurfaceSampler(mesh).build();
+    const positions = [];
+    const colors = [];
+    const color = new THREE.Color();
+    const position = new THREE.Vector3();
+    const normal = new THREE.Vector3();
+
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.MeshStandardMaterial({
+        color: 'white',
+        roughness: 0.5,
+        metalness: 0.5
+    });
+
+    for (let i = 0; i < count; i++) {
+        sampler.sample(position, normal);
+
+        if (position.y >= startY && position.y <= endY) {
+            positions.push(position.x, position.y, position.z);
+            color.setHSL(Math.random(), 1.0, 0.5);
+            colors.push(color.r, color.g, color.b);
+        }
+    }
+
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const pointMesh = new THREE.InstancedMesh(spice.scene.children[0].geometry, material, count);
+    for (let i = 0; i < count; i++) {
+        const matrix = new THREE.Matrix4();
+        matrix.setPosition(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+        pointMesh.setMatrixAt(i, matrix);
+    }
+
+    return pointMesh;
+}
+
 
 // Generate points
 topSurface.points = generatePoints(topSurface, count * 0.1, startY, endY)
 points = generatePoints(container, count, startY, endY);
-console.log(points.geometry.attributes.color)
+// pointMesh = generateMeshes(container, count, startY, endY);
+console.log(points)
 scene.add(topSurface.points, points)
 }
 
@@ -347,7 +413,11 @@ pointsFolder.add(fill, 'pointSize').min(0.1).max(10).step(0.1).name('Point Size'
 });
 
 
-})
+}
+
+// begin experience
+loadModels();
+
 
 /**
  * Resizing

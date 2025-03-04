@@ -63,8 +63,6 @@ export default class TopSurface
 
     createGeometry()
     {
-
-
         // Create a shape and add vertices
         const shape = new THREE.Shape();
         shape.moveTo(this.vertices[0].z, this.vertices[0].x);

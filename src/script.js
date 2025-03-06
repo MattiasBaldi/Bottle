@@ -5,9 +5,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
 import particlesVertexShader from './shaders/particles/vertex.glsl'
 import particlesFragmentShader from './shaders/particles/fragment.glsl'
-import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
-import Spice from './spice.js'
-import TopSurface from "./utils/topsurface";
+
+import Spice from './sampler/spice.js'
+import TopSurface from "./sampler/topsurface.js";
 
 /**
  * Base
@@ -25,6 +25,7 @@ const scene = new THREE.Scene()
  *
  * Environment
  */
+
 const environmentloader = new RGBELoader()
 environmentloader.load('./HDR/restaurant.hdr', (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
@@ -39,7 +40,6 @@ const backgroundParams = { background: false };
 backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').onChange((value) => {
     scene.background = value ? scene.environment : new THREE.Color('#ffffff'); 
 });
-
 
 /**
  * Sizes
@@ -59,6 +59,16 @@ camera.position.y = 0
 camera.position.z = 4
 scene.add(camera)
 
+// Debug camera near and far
+const cameraFolder = debug.addFolder('Camera');
+cameraFolder.close();
+cameraFolder.add(camera, 'near').min(0.1).max(10).step(0.1).name('Near').onChange(() => {
+    camera.updateProjectionMatrix();
+});
+cameraFolder.add(camera, 'far').min(0).max(1000).step(1).name('Far').onChange(() => {
+    camera.updateProjectionMatrix();
+});
+
 // Controls
 const controls = new OrbitControls(camera, canvas)
 // controls.enableDamping = true
@@ -77,47 +87,9 @@ const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true
 })
+
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
-
-// /**
-//  * Lights
-//  */
-// const ambientLight = new THREE.AmbientLight('red', 0.5);
-// scene.add(ambientLight);
-
-// const directionalLight = new THREE.DirectionalLight('red', 100);
-// directionalLight.position.set(5, 5, 5);
-// directionalLight.castShadow = true;
-// scene.add(directionalLight);
-
-// // Light helper
-// const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 1, 'blue');
-// scene.add(directionalLightHelper);
-
-// // Debug for directional light
-// const lightFolder = debug.addFolder('Directional Light');
-// lightFolder.close();
-// const lightParams = {
-//     x: directionalLight.position.x,
-//     y: directionalLight.position.y,
-//     z: directionalLight.position.z
-// };
-// lightFolder.add(directionalLight, 'intensity').min(0).max(10).step(0.1).name('Intensity').onChange((value) => {
-//     directionalLight.intensity = value;
-// });
-// lightFolder.add(lightParams, 'x').min(-10).max(10).step(0.1).name('X Position').onChange((value) => {
-//     directionalLight.position.x = value;
-//     directionalLightHelper.update();
-// });
-// lightFolder.add(lightParams, 'y').min(-10).max(10).step(0.1).name('Y Position').onChange((value) => {
-//     directionalLight.position.y = value;
-//     directionalLightHelper.update();
-// });
-// lightFolder.add(lightParams, 'z').min(-10).max(10).step(0.1).name('Z Position').onChange((value) => {
-//     directionalLight.position.z = value;
-//     directionalLightHelper.update();
-// });
 
 /**
  * Load Texture
@@ -144,7 +116,7 @@ async function loadModels() {
     const gltfLoader = new GLTFLoader();
 
     const spicePromise = new Promise((resolve, reject) => {
-        gltfLoader.load('./models/spice.glb', (gltf) => {
+        gltfLoader.load('./models/spices.glb', (gltf) => {
             resolve(gltf);
         }, undefined, reject);
     });
@@ -170,7 +142,11 @@ async function loadModels() {
 // init experience function
 function initExperience() {
 
-// Container
+/**
+ * JAR
+ */
+
+// Material
 const glassMaterial = new THREE.MeshPhysicalMaterial({
     color: 'white',
     roughness: 0,
@@ -181,74 +157,58 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     envMapIntensity: 1.0, // Ensure environment map intensity is set
     // clearcoat: 0.1, // Add a small clearcoat for better reflections
     // clearcoatRoughness: 0.1, // Slight roughness for clearcoat
-    side: THREE.FrontSide,
-    depthWrite: false, 
+    side: THREE.DoubleSide,
 });
 
+// Geometry
 const jar = bottle.scene.children[0]
+jar.geometry.computeBoundingBox();
 jar.name = 'jar'
 jar.scale.setScalar(1)
 jar.position.set(0, 0, 0)
 jar.material = glassMaterial
 scene.add(jar)
 
-/**
- * Helpers and Debug
- */
 
-// Debug for glass material
+// BoxHelper
+const boxHelper = new THREE.BoxHelper(jar, 0xff0000);
+boxHelper.visible = false; 
+scene.add(boxHelper);
+
+
+// Debug
 const bottleFolder = debug.addFolder('Bottle')
 bottleFolder.close()
-const jarParams = { visible: true };
+const jarParams = { visible: true, boxVisible: false, wireframe: false, side: 'DoubleSide' };
 bottleFolder.add(jarParams, 'visible').name('Visible').onChange((value) => {
     jar.visible = value;
 });
+bottleFolder.add(jarParams, 'boxVisible').name('BoundingBox Helper').onChange((value) => {
+    boxHelper.visible = value;
+});
+bottleFolder.add(jarParams, 'wireframe').name('Wireframe').onChange((value) => {
+    glassMaterial.wireframe = value;
+});
+bottleFolder.add(jarParams, 'side', { Front: 'FrontSide', Back: 'BackSide', Double: 'DoubleSide' }).name('Side').onChange((value) => {
+    glassMaterial.side = THREE[value];
+    glassMaterial.needsUpdate = true;
+});
 bottleFolder.addColor(glassMaterial, 'color').name('Color')
 bottleFolder.add(glassMaterial, 'roughness').min(0).max(1).step(0.01).name('Roughness')
-bottleFolder.add(glassMaterial, 'metalness').min(0).max(1).step(0.01).name('Roughness')
+bottleFolder.add(glassMaterial, 'metalness').min(0).max(1).step(0.01).name('Metalness')
 bottleFolder.add(glassMaterial, 'transmission').min(0).max(1).step(0.01).name('Transmission')
 bottleFolder.add(glassMaterial, 'opacity').min(0).max(1).step(0.01).name('Opacity')
 bottleFolder.add(glassMaterial, 'envMapIntensity').min(0).max(10).step(0.1).name('EnvMap Intensity')
 bottleFolder.add(glassMaterial, 'clearcoat').min(0).max(1).step(0.01).name('Clearcoat')
 bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).name('Clearcoat Roughness')
 
-// Spices params
-const spices = 
-{
+/**
+ * Spices
+ */
 
-    chili:
-    {
-        type: 'mesh', // Determine what is used
-        mesh: spiceModels.scene.children[0], 
-        count: 100,
-  
-        material: new THREE.MeshStandardMaterial
-        ({
+const shaderMaterial = new THREE.ShaderMaterial
+({
 
-        }),
-    },
-
-    pepper:
-    {
-        type: 'points', // Determine what is used
-        mesh: null,
-        count: 100000,
-        material: new THREE.PointsMaterial
-        ({
-            size: 0.1,
-            map: sprites.pepperCorn,
-            transparent: true,
-            // alphaTest: 0.1,
-            depthWrite: false
-        })
-    },
-
-
-    // shaderPoints: 
-    // {
-    //     count: 10000,
-    //     material: new THREE.ShaderMaterial({
-        
     //             vertexShader: particlesVertexShader, 
     //             fragmentShader: particlesFragmentShader,
     //             uniforms: 
@@ -333,26 +293,92 @@ const spices =
     //             transparent: true,
     //             depthWrite: false
     //         })
+})
 
-    // }
+const spices = 
+{
 
+    wormwood:
+    {
+        type: 'mesh', // Determine what is used
+        mesh: spiceModels.scene.getObjectByName('wormwood'), 
+        size: 1,
+        count: 500,
+        collisionDistance: 0.1
+        },
 
+        sugar:
+        {
+        type: 'mesh', // Determine what is used
+        mesh: spiceModels.scene.getObjectByName('Sugar'), 
+        count: 10000,
+        size: 1,
+        collisionDistance: 0.1
+    },
+
+    basil:
+    {
+        type: 'mesh', // Determine what is used
+        mesh: spiceModels.scene.getObjectByName('basil'), 
+        count: 100,
+        size: 0.001,
+        collisionDistance: 0.01
+    },
+
+    anise:
+    {
+        type: 'mesh', // Determine what is used
+        mesh: spiceModels.scene.getObjectByName('star_anise'), 
+        count: 100,
+        size: 0.01,
+        collisionDistance: 0.01
+    },
+
+    cloves:
+    {
+        type: 'mesh', // Determine what is used
+        mesh: spiceModels.scene.getObjectByName('retopo_cloves'), 
+        count: 100,
+        size: 0.01,
+        collisionDistance: 0.01
+    },
+
+    pepper:
+    {
+        type: 'points', // Determine what is used
+        mesh: null,
+        count: 10000,
+        material: new THREE.PointsMaterial
+        ({
+            size: 0.15,
+            sizeAttenuation: true,
+            map: sprites.pepperCorn,
+            alphaTest: 1, // Enable alpha testing to discard low alpha pixels
+        })
+
+    },
 }
 
-// Jar content
-const jarContent = {}
-jarContent.spices = {}
-// jarContent.topSurface = new TopSurface();
+/**
+ * Jar content
+ */
 
-// Debug
-const spicesFolder = debug.addFolder('Spices')
-spicesFolder.close()
+jar.content = {}
+jar.content.spices = {}
+jar.content.topSurface = new TopSurface(jar, jar.geometry.boundingBox.min.y); // Top
 
-// /*
-// REMOVE POINTS
-// */
-function removePoints(spice)
-{
+/**
+ * Logic
+ */
+
+function addSpice(spiceName) {
+    const spice = new Spice(spices[spiceName]);
+    jar.content.spices[spiceName] = spice;
+}
+
+function removeSpice(spiceName) {
+    const spice = jar.content.spices[spiceName]
+    console.log(spice)
     if(spice.points)
     {
         scene.remove(spice.points)
@@ -360,268 +386,142 @@ function removePoints(spice)
         spice.points.material.dispose();
         spice.points = null;
     }
+
+    sampleTop()
+    delete jar.content.spices[spiceName];
+    
 }
 
-// Chili Spice
-const chili = new Spice(jar, spices.chili); 
-jarContent.spices.chili = chili 
+function sampleTop()
+{
+const topSpice = Object.values(jar.content.spices).reduce((highest, spice) => 
+    (spice.endPercentage > highest.endPercentage) ? spice : highest
+);
 
+// remove existing mesh
+if (jar.content.topSurface.mesh) 
+{
+    scene.remove(jar.content.topSurface.mesh);
+    jar.content.topSurface.geometry.dispose();
+    jar.content.topSurface.material.dispose();
 
-// /*
-// POINTS
-// */
-chili.start = 10; // Y%
-chili.end = 30;  // Y%
-chili.points = chili.create(chili.start, chili.end); // declare type in spices params to change mesh/points
-scene.add(chili.points);
+}
 
-// Debug
-const ChiliFolder = spicesFolder.addFolder('Chili')
-ChiliFolder.add(spices.chili, 'count').min(0).max(10000).step(0.01).onChange((value) => 
-    {
-        spices.chili.count = value
-        removePoints(jarContent.spices.chili);
-        jarContent.spices.chili.points = jarContent.spices.chili.create(jarContent.spices.chili.start, jarContent.spices.chili.end); // mesh
-        scene.add(jarContent.spices.chili.points);
-    })
-ChiliFolder.add(jarContent.spices.chili, 'start').min(0).max(100).step(1).name('Start %').onChange((value) => {
-    jarContent.spices.chili.start = value;
-    removePoints(jarContent.spices.chili);
-    jarContent.spices.chili.points = jarContent.spices.chili.create(jarContent.spices.chili.start, jarContent.spices.chili.end); // mesh
-    scene.add(jarContent.spices.chili.points);
-});
-ChiliFolder.add(jarContent.spices.chili, 'end').min(0).max(100).step(1).name('End %').onChange((value) => {
-    jarContent.spices.chili.end = value;
-    removePoints(jarContent.spices.chili);
-    jarContent.spices.chili.points = jarContent.spices.chili.create(jarContent.spices.chili.start, jarContent.spices.chili.end); // mesh
-    scene.add(jarContent.spices.chili.points);
-});
+// remove existing points
+if (jar.content.topSurface.points) 
+{
+    scene.remove(jar.content.topSurface.points)
+    jar.content.topSurface.points.geometry.dispose();
+    jar.content.topSurface.points.material.dispose();
+    jar.content.topSurface.points = null;
+}
 
+// add top
+jar.content.topSurface.set(topSpice.endY) // set mesh position
+// scene.add(jar.content.topSurface.mesh) // show mesh 
 
-// Adding & Removing 
-// ChiliFolder.add({ removeChili: false }, 'removeChili').name('Remove Chili').onChange((value) => 
-//     {
-//         if (value) {
-//             removePoints(jarContent.spices.chili);
-//             delete jarContent.spices.chili;
-//         }
-//     })
+// create points
+jar.content.topSurface.points = topSpice.createTop(jar.content.topSurface.mesh, jar.content.topSurface.mesh.position.y, jar.content.topSurface.mesh.position.y)
+scene.add(jar.content.topSurface.points)
+}
 
+function calculatePoints(spice, startPercentage, endPercentage)
+{
+        // remove
+        if (spice.points) {
+            scene.remove(spice.points)
+            spice.points.geometry.dispose();
+            spice.points.material.dispose();
+            spice.points = null;
+        }
+    
+        spice.startPercentage = startPercentage; // Y%
+        spice.endPercentage = endPercentage; // Y%
+        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage); // declare type in spices params to change mesh/points
+        scene.add(spice.points);
+    
+        sampleTop()
+}
 
-// /*
-// OLD FUNCTION
-// */
+/**
+ * Panel
+ */
 
-// // Compute height
-// jar.geometry.computeBoundingBox();
-// const minY = jar.geometry.boundingBox.min.y;
-// const maxY = jar.geometry.boundingBox.max.y;
-// const height = maxY - minY; 
+const spicesFolder = debug.addFolder('Spices')
 
+// params
+const spiceOptions = Object.keys(spices);
+const spiceParams = { selectedSpice: spiceOptions[0] };
 
-// Topsurface
-// topSurface = new TopSurface(jar, endY) // Creates a topsurface class
+// dropdown component
+function createSpiceDropdown() {
+    const spiceFolder = spicesFolder.addFolder(`Spice ${Object.keys(jar.content.spices).length + 1}`);
+    spiceParams.selectedSpice = ''; // Set initial name to nothing
 
-// let topSurface = null; 
-// let points = null;
-// let pointMesh = null;
-// let count = 100000;
-
-// function addPointsToJar(container, startPercentage, endPercentage) {
-
-// // Remove existing points if they exist
-// if (points) 
-// {
-//     scene.remove(points);
-//     points.geometry.dispose();
-//     points.material.dispose();
-//     points = null;
-// }
-
-// if (topSurface) 
-//     {
-//         if(topSurface.points)
-//         {
-//         scene.remove(topSurface.points);
-//         topSurface.points.geometry.dispose()
-//         topSurface.points.material.dispose()
-//         }
-//         topSurface.geometry.dispose()
-//         topSurface.material.dispose()
-//         topSurface = null; 
-//     }
-
-// // Define threshold
-// const startY = minY + height * startPercentage * 0.01;
-// const endY = minY + height * endPercentage * 0.01;
-
-// // topSurface
-// topSurface = new TopSurface(jar, endY) // Creates a topsurface class
-
-// // Generate points
-// // function generatePoints(mesh, count, startY, endY) {
-// //     // Begin the sampler
-// //     const sampler = new MeshSurfaceSampler(mesh).build();
-// //     const pointsGeometry = new THREE.BufferGeometry();
-// //     const positions = new Float32Array(count * 3);
-// //     const colors = new Float32Array(count * 3); // Array to store colors
-// //     const color = new THREE.Vector3();
-// //     const position = new THREE.Vector3();
-// //     const normal = new THREE.Vector3();
-
-// //     // Material
-// //     const material = new THREE.ShaderMaterial({
-
-// //         vertexShader: particlesVertexShader, 
-// //         fragmentShader: particlesFragmentShader,
-// //         uniforms: 
-// //         {
-// //             uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()),
-
-// //             // Colors
-// //             uColorOne: new THREE.Uniform(new THREE.Color(fill.colorOne)),
-// //             uColorTwo: new THREE.Uniform(new THREE.Color(fill.colorTwo)),
-// //             uColorThree: new THREE.Uniform(new THREE.Color(fill.colorThree)),
-
-// //             uSaturation: new THREE.Uniform(1.0),
-// //             uBrightness: new THREE.Uniform(1.0),
-// //             uContrast: new THREE.Uniform(1.0),
-
-// //             // Shapes
-// //             uShapeType: new THREE.Uniform(1.0), // Interpolates between triangles, squares and circles
-
-// //             /* 
-// //             float circle = smoothstep(0.5, 0.48, length(uv));
-// //             float square = 1.0;
-// //             float triangle = step(uv.y + 0.25, 0.866 * (0.5 - abs(uv.x)));
-
-// //             float shapeMix = smoothstep(0.0, 1.0, uShapeType); // Interpolates between shapes
-// //             float finalShape = mix(circle, square, shapeMix);
-// //             finalShape = mix(finalShape, triangle, smoothstep(1.0, 2.0, uShapeType));
-
-// //             if (finalShape < 0.5) discard;
-          
-// //             uTriangle: new THREE.Uniform(),
-// //             uTriangleSize: new THREE.Uniform(new THREE.Vector3), 
-
-// //             uSquare: new THREE.Uniform(),
-// //             uSquareSize: new THREE.Uniform(new THREE.Vector3), 
-            
-// //             uCircle: new THREE.Uniform(),
-// //             uCircleSize: new THREE.Uniform(new THREE.Vector3), 
-          
-// //             */
-
-// //             // Textures || Sprites
-// //             uTextureMix: new THREE.Uniform(),
-// //             uSprite: new THREE.Uniform(),
-// //             uTexture: new THREE.Uniform(),
-
-// //             // Variation
-// //             uScaleRandomness: new THREE.Uniform(),
-// //             uRotationRandomness: new THREE.Uniform(),
-
-// //             // Details
-// //             uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
-// //             uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
-// //             uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
-// //             uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
-
-// //             // Extra
-
-// //             // Granularity & Clumping
-// //             // uGranularity: Defines whether the spice is a fine powder or coarse (adjust particle size distribution).
-// //             // uClumping: Adjusts how particles stick together (use slight attraction forces).
-
-// //             // Aging & Environmental Effects
-// //             // uDryness: Controls how dusty or moist the spice looks (affects roughness and opacity).
-// //             // uDustiness: Adds a subtle overlay for aged or powdered spices.
-
-// //             // uJitter: Adds randomness to size and position to prevent uniform-looking particles.
-// //             // uSizeVariation: Adjusts particle sizes for a natural, uneven look.
-
-
-// //             /*
-// //             Performance Considerations
-// //             The biggest performance hits come from:
-
-// //             Textures: Large or multiple textures can slow rendering. Use smaller, compressed textures or a texture atlas.
-// //             Transparency & Blending: Overlapping semi-transparent particles require sorting, which is expensive.
-// //             Per-Pixel Computation: Complex fragment shader operations like noise functions, lighting, and procedural textures are costly.
-// //             Particle Count: More particles mean more draw calls. Batch rendering and instancing help.
-// //             High-Precision Math: Avoid excessive conditionals or loops in shaders.
-// //             */
-  
-// //         },
-// //         transparent: true,
-// //         depthWrite: false
-// //     })
-
-// //     // Sample randomly from the surface, generating points on the jar geometry
-// //     let sampledCount = 0;
-// //     for (let i = 0; i < count; i++) {
-// //         const i3 = i * 3
-// //         sampler.sample(position, normal);
-
-// //         // Only add points on y threshold and ensure they are inside the jar
-// //         if (position.y >= startY && position.y <= endY) {    
-            
-// //             // Position
-// //             position.multiplyScalar(0.97); // Offset to fit inside jar
-// //             positions.set([position.x, position.y, position.z], sampledCount * 3);
-     
-// //             // Color
-// //             color.lerp(fill.colorOne, fill.colorTwo, Math.random());
-// //             colors.set([color.r, color.g, color.b], sampledCount * 3);
+     // add dropdown
+    const spicePanel = {};
+    let currentSpice = null; 
+    
+    spiceFolder.add(spiceParams, 'selectedSpice', spiceOptions).name('Select Spice').onChange((spiceName) => {
+        
+        // clear everything
+        if(currentSpice)
+        {
+            removeSpice(currentSpice)
+        }
+        
+        if (Object.keys(spicePanel).length > 0) {
+            spicePanel.count.destroy();
+            spicePanel.start.destroy();
+            spicePanel.end.destroy();
+            spicePanel.removeButton.destroy();  
+        }
+    
+        // add spice
+        addSpice(spiceName);
+        const spice = jar.content.spices[spiceName];
+        currentSpice = spiceName
+        spice.startPercentage = 0; 
+        spice.endPercentage = 0; 
+        
+        /*
+        SLIDERS
+        */
+    
+        // count
+        spicePanel.count = spiceFolder.add(spice.params, 'count').min(0).max(10000).onChange(() => 
+        {
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
+        }).name('Count (when jar is filled)')
+    
+        // start
+        spicePanel.start = spiceFolder.add(spice, 'startPercentage').min(0).max(100).onChange((value) => 
+        {
+            calculatePoints(spice, value, spice.endPercentage); 
+        });
+    
+        // end
+        spicePanel.end = spiceFolder.add(spice, 'endPercentage').min(0).max(100).onChange((value) => 
+        {
+            calculatePoints(spice, spice.startPercentage, value); 
+        });
       
-// //             sampledCount++;
-// //         }
-// //     }
-
-// //     // Adjust arrays to the actual number of sampled points
-// //     const adjustedPositions = positions.subarray(0, sampledCount * 3);
-// //     pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
-// //     pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-// //     return points = new THREE.Points(pointsGeometry, material); // Points
-// // }
-
-// // topSurface.points = generatePoints(topSurface, count * 0.1, startY, endY)
-// // points = generatePoints(container, count, startY, endY);
-// // scene.add(topSurface.points, points)
+        // self destruct button
+        spicePanel.removeButton = spiceFolder.add({ remove: () => {
+         
+            spiceFolder.destroy();
+            removeSpice(spiceName)
+        }}, 'remove').name('Remove');
+    });
+}
 
 
-// }
-// // addPointsToJar(jar, 0, 45);
-
-
-// // Debug 
-// const pointsFolder = debug.addFolder('Points');
-// pointsFolder.close();
-// const pointsParams = { startPercentage: 0, endPercentage: 30, count: 100000};
-
-// pointsFolder.add(pointsParams, 'startPercentage').min(0).max(100).step(1).name('Start Percentage').onChange(() => {
-//     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
-// });
-
-// pointsFolder.add(pointsParams, 'endPercentage').min(0).max(100).step(1).name('End Percentage').onChange(() => {
-//     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
-// });
-
-// pointsFolder.add(pointsParams, 'count').min(1000).max(10000000).step(1000).name('Point Count').onChange((value) => {
-//     count = value;
-//     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
-// });
-
-// pointsFolder.add(fill, 'pointSize').min(0.1).max(10).step(0.1).name('Point Size').onChange(() => {
-//     addPointsToJar(jar, pointsParams.startPercentage, pointsParams.endPercentage);
-// });
-
+// init button
+spicesFolder.add({ addSpice: createSpiceDropdown }, 'addSpice').name('Add Spice');
 }
 
 // begin experience
 loadModels();
-
 
 /**
  * Resizing

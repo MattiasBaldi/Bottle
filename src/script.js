@@ -8,7 +8,7 @@ import particlesVertexShader from './shaders/sprites/vertex.glsl'
 import particlesFragmentShader from './shaders/sprites/fragment.glsl'
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 import Spice from './spice.js'
-import YLevelPlane from "./utils/sampler/YLevelPlane.js";
+import YLevelPlane from "./utils/YLevelPlane.js";
 
 /**
  * Base
@@ -242,46 +242,19 @@ const shaderMaterial = new THREE.ShaderMaterial
     //             fragmentShader: particlesFragmentShader,
     //             uniforms: 
     //             {
-    //                 uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()),
+    //                 uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()), // Also adds size attentuation
         
     //                 // Colors
     //                 uColorOne: new THREE.Uniform(new THREE.Color(fill.colorOne)),
     //                 uColorTwo: new THREE.Uniform(new THREE.Color(fill.colorTwo)),
     //                 uColorThree: new THREE.Uniform(new THREE.Color(fill.colorThree)),
-        
     //                 uSaturation: new THREE.Uniform(1.0),
     //                 uBrightness: new THREE.Uniform(1.0),
-    //                 uContrast: new THREE.Uniform(1.0),
-        
-    //                 // Shapes
-    //                 uShapeType: new THREE.Uniform(1.0), // Interpolates between triangles, squares and circles
-        
-    //                 /* 
-    //                 float circle = smoothstep(0.5, 0.48, length(uv));
-    //                 float square = 1.0;
-    //                 float triangle = step(uv.y + 0.25, 0.866 * (0.5 - abs(uv.x)));
-        
-    //                 float shapeMix = smoothstep(0.0, 1.0, uShapeType); // Interpolates between shapes
-    //                 float finalShape = mix(circle, square, shapeMix);
-    //                 finalShape = mix(finalShape, triangle, smoothstep(1.0, 2.0, uShapeType));
-        
-    //                 if (finalShape < 0.5) discard;
-                  
-    //                 uTriangle: new THREE.Uniform(),
-    //                 uTriangleSize: new THREE.Uniform(new THREE.Vector3), 
-        
-    //                 uSquare: new THREE.Uniform(),
-    //                 uSquareSize: new THREE.Uniform(new THREE.Vector3), 
-                    
-    //                 uCircle: new THREE.Uniform(),
-    //                 uCircleSize: new THREE.Uniform(new THREE.Vector3), 
-                  
-    //                 */
         
     //                 // Textures || Sprites
-    //                 uTextureMix: new THREE.Uniform(),
     //                 uSprite: new THREE.Uniform(),
-    //                 uTexture: new THREE.Uniform(),
+    //                 uSpriteNormal: new THREE.Uniform(),
+    //                 uSpriteRoughness: new THREE.Uniform(),
         
     //                 // Variation
     //                 uScaleRandomness: new THREE.Uniform(),
@@ -294,18 +267,14 @@ const shaderMaterial = new THREE.ShaderMaterial
     //                 uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
         
     //                 // Extra
-        
     //                 // Granularity & Clumping
     //                 // uGranularity: Defines whether the spice is a fine powder or coarse (adjust particle size distribution).
     //                 // uClumping: Adjusts how particles stick together (use slight attraction forces).
-        
-    //                 // Aging & Environmental Effects
     //                 // uDryness: Controls how dusty or moist the spice looks (affects roughness and opacity).
     //                 // uDustiness: Adds a subtle overlay for aged or powdered spices.
         
     //                 // uJitter: Adds randomness to size and position to prevent uniform-looking particles.
     //                 // uSizeVariation: Adjusts particle sizes for a natural, uneven look.
-        
         
     //                 /*
     //                 Performance Considerations

@@ -7,8 +7,13 @@ import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 export default class Spice {
     constructor(params) 
     {
-        this.points = null; 
+
+        // Parameters
         this.params = params;
+        this.type = this.params.type; // instances or points
+        this.points = null; 
+
+        // Starting position
         this.startY = null; 
         this.endY = null;
     }

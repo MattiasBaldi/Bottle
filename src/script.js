@@ -4,11 +4,11 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
-import particlesVertexShader from './shaders/particles/vertex.glsl'
-import particlesFragmentShader from './shaders/particles/fragment.glsl'
+import particlesVertexShader from './shaders/sprites/vertex.glsl'
+import particlesFragmentShader from './shaders/sprites/fragment.glsl'
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
-import Spice from './sampler/spice.js'
-import TopSurface from "./sampler/topsurface.js";
+import Spice from './spice.js'
+import YLevelPlane from "./utils/sampler/YLevelPlane.js";
 
 /**
  * Base
@@ -26,9 +26,8 @@ const scene = new THREE.Scene()
  *
  * Environment
  */
-
 const environmentloader = new RGBELoader()
-environmentloader.load('./HDR/restaurant.hdr', (texture) => {
+environmentloader.load('./environment/HDR/restaurant_1k.hdr', (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = texture;
     scene.background = new THREE.Color('#ffffff')
@@ -97,6 +96,25 @@ renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
 
 /**
+ * Resizing
+ */
+window.addEventListener('resize', () =>
+    {
+        // Update sizes
+        sizes.width = window.innerWidth
+        sizes.height = window.innerHeight
+        sizes.pixelRatio = Math.min(window.devicePixelRatio, 1)
+    
+        // Update camera
+        camera.aspect = sizes.width / sizes.height
+        camera.updateProjectionMatrix()
+    
+        // Update renderer
+        renderer.setSize(sizes.width, sizes.height)
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
+    })
+
+/**
  * Load Texture
  */
 const textureLoader = new THREE.TextureLoader()
@@ -108,7 +126,6 @@ const sprites =
     basilLeaf: textureLoader.load('./textures/sprites/basilLeaf.png'), 
     sugar: textureLoader.load('./textures/sprites/sugar.png'), 
 }
-
 
 
 // Set sRGB encoding for all sprites
@@ -152,7 +169,6 @@ async function loadModels() {
 // init experience function
 function initExperience() {
 
-    console.log((spiceModels))
 /**
  * JAR
  */
@@ -184,12 +200,10 @@ jar.position.set(0, 0, 0)
 jar.material = glassMaterial
 group.add(jar)
 
-
 // BoxHelper
 const boxHelper = new THREE.BoxHelper(jar, 0xff0000);
 boxHelper.visible = false; 
 group.add(boxHelper);
-
 
 // Debug
 const bottleFolder = debug.addFolder('Bottle')
@@ -313,6 +327,8 @@ const shaderMaterial = new THREE.ShaderMaterial
 const spices = 
 {
 
+    // Instances 
+
     wormwood:
     {
         type: 'mesh', // Determine what is used
@@ -357,6 +373,8 @@ const spices =
         size: 0.01,
         collisionDistance: 0.01
     },
+
+    // Sprites
 
     pepperPoints:
     {
@@ -425,7 +443,8 @@ const spices =
 
 jar.content = {}
 jar.content.spices = {}
-jar.content.topSurface = new TopSurface(jar, jar.geometry.boundingBox.min.y); // Top
+jar.content.topSurface = new YLevelPlane(jar, jar.geometry.boundingBox.min.y); // Top
+
 
 /**
  * Logic
@@ -466,6 +485,10 @@ if (jar.content.topSurface.mesh)
     jar.content.topSurface.material.dispose();
 }
 
+// add top mesh
+jar.content.topSurface.set(topSpice.endY) // set mesh
+// group.add(jar.content.topSurface.mesh) // show mesh 
+
 // remove existing points
 if (jar.content.topSurface.points) 
 {
@@ -475,11 +498,7 @@ if (jar.content.topSurface.points)
     jar.content.topSurface.points = null;
 }
 
-// add top
-jar.content.topSurface.set(topSpice.endY) // set mesh position
-// group.add(jar.content.topSurface.mesh) // show mesh 
-
-// create points
+// add top points
 jar.content.topSurface.points = topSpice.createTop(jar.content.topSurface.mesh, jar.content.topSurface.mesh.position.y, jar.content.topSurface.mesh.position.y)
 group.add(jar.content.topSurface.points)
 }
@@ -502,7 +521,7 @@ function calculatePoints(spice, startPercentage, endPercentage)
         sampleTop()
 }
 
-function convertToMesh()
+function instanceMesh()
 {
 
 }
@@ -545,11 +564,11 @@ function mixSpices()
  * Panel
  */
 
-const spicesFolder = debug.addFolder('Spices')
-
 // params
+const spicesFolder = debug.addFolder('Spices')
 const spiceOptions = Object.keys(spices);
 const spiceParams = { selectedSpice: spiceOptions[0] };
+let spicesInJar = 0; 
 
 // dropdown component
 function createSpiceDropdown() {
@@ -622,12 +641,12 @@ function createSpiceDropdown() {
 }
 
 // add button
-let spicesInJar = 0; 
 spicesFolder.add({ addSpice: () => {
     if (spicesInJar < 7) {
         createSpiceDropdown();
         spicesInJar += 1; 
         console.log('spices in the jar', spicesInJar); 
+        console.log(jar.content)
     } else {
         console.log('Cannot add more than 7 spices');
     }
@@ -651,30 +670,12 @@ spicesFolder.add({ optimize: () => {
     }
 }}, 'optimize').name('Optimize');
 
+
 }
 
-
-// begin experience
+// load models and begin experience when ready
 loadModels();
 
-/**
- * Resizing
- */
-window.addEventListener('resize', () =>
-    {
-        // Update sizes
-        sizes.width = window.innerWidth
-        sizes.height = window.innerHeight
-        sizes.pixelRatio = Math.min(window.devicePixelRatio, 1)
-    
-        // Update camera
-        camera.aspect = sizes.width / sizes.height
-        camera.updateProjectionMatrix()
-    
-        // Update renderer
-        renderer.setSize(sizes.width, sizes.height)
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1))
-    })
 
 /**
  * Animate
@@ -690,8 +691,6 @@ const tick = () =>
 
     // Render
     renderer.render(scene, camera)
-
-
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)

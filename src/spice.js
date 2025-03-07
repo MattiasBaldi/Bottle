@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
+import instanceSampler from './utils/sampler/instanceSampler.js'
+import pointsSampler from './utils/sampler/pointsSampler.js'
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 
 export default class Spice {
@@ -8,7 +10,7 @@ export default class Spice {
         this.points = null; 
         this.params = params;
         this.startY = null; 
-        this.endY = null;  
+        this.endY = null;
     }
 
     create(mesh, start, end) {
@@ -16,7 +18,7 @@ export default class Spice {
         if (this.params.type === 'points') {
             return this.#createPoints(rotations, positions, colors, sampledCount);
         } else if (this.params.type === 'mesh') {
-            return this.#createMesh(normals, positions, sampledCount);
+            return this.#createInstancedMesh(normals, positions, sampledCount);
         }
     }
 
@@ -29,11 +31,12 @@ export default class Spice {
             topPoints = this.#createPoints(positions, colors, sampledCount);
             return topPoints; 
         } else if (this.params.type === 'mesh') {
-            topPoints = this.#createMesh(normals, rotations, positions, sampledCount);
+            topPoints = this.#createInstancedMesh(normals, rotations, positions, sampledCount);
             return topPoints; 
         }
     }
 
+    // Points with sprite textures
     #createPoints(positions, colors, sampledCount) {
         let points = null; 
         const pointsGeometry = new THREE.BufferGeometry();
@@ -44,7 +47,8 @@ export default class Spice {
         return points = new THREE.Points(pointsGeometry, this.params.material);
     }
 
-    #createMesh(normals, positions, sampledCount) {
+    // Instances
+    #createInstancedMesh(normals, positions, sampledCount) {
         
         const instancedMesh = new InstancedMesh2(this.params.mesh.geometry, this.params.mesh.material, { capacity: sampledCount });
 
@@ -70,11 +74,11 @@ export default class Spice {
             obj.updateMatrix();
         });
     
-    
         instancedMesh.instanceMatrix.needsUpdate = true;
         return instancedMesh;
     }
 
+    // Surface Sampler
     #samplePoints(mesh, startPercentage, endPercentage, count, includeColors) {
 
         if(mesh.geometry.boundingBox) {

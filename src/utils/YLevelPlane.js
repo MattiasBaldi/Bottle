@@ -1,6 +1,10 @@
 import * as THREE from 'three'
 
-export default class TopSurface
+/**
+ * Utility class to create a horizontal plane inside a mesh, specified at a specific y-coordinate
+ */
+
+export default class YLevelPlane
 {
     constructor(container)
     {
@@ -25,7 +29,6 @@ export default class TopSurface
 
     groupVerticesByYCoordinates()
     {  
-
             // Group vertices into groups based on their y-coordinate
             for (let i = 0; i < this.container.geometry.attributes.position.count; i++) {
                 const vertex = new THREE.Vector3().fromBufferAttribute(this.container.geometry.attributes.position, i);

@@ -1,8 +1,6 @@
 import * as THREE from 'three';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
-import { createRadixSort } from '@three.ez/instanced-mesh';
-
 
 export default class Spice {
     constructor(params) 
@@ -16,7 +14,7 @@ export default class Spice {
     create(mesh, start, end) {
         const { normals, rotations, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, this.params.count, this.params.type === 'points');
         if (this.params.type === 'points') {
-            return this.#createPoints(positions, colors, sampledCount);
+            return this.#createPoints(rotations, positions, colors, sampledCount);
         } else if (this.params.type === 'mesh') {
             return this.#createMesh(normals, positions, sampledCount);
         }
@@ -47,13 +45,12 @@ export default class Spice {
     }
 
     #createMesh(normals, positions, sampledCount) {
-        this.params.mesh.scale.set(this.params.size);
+        
         const instancedMesh = new InstancedMesh2(this.params.mesh.geometry, this.params.mesh.material, { capacity: sampledCount });
-        
-        /// Compute boundingBox
-        const bvh = instancedMesh.computeBVH({ margin: 0 });
-        
 
+        /// Compute boundingBox
+        instancedMesh.computeBVH({ margin: 0 });
+        
         instancedMesh.addInstances(sampledCount, (obj, index) => {
             const i3 = index * 3;
     
@@ -66,15 +63,13 @@ export default class Spice {
             // Setting rotation towards 0,0,0 depending on the normal at given position
             const euler = new THREE.Euler().setFromVector3(normal);
             obj.quaternion.setFromEuler(euler);
+
+            obj.scale.set(this.params.size, this.params.size, this.params.size)
     
             // Update matrix
             obj.updateMatrix();
         });
     
-        // instancedMesh.sortObjects = true;
-        // instancedMesh.customSort = createRadixSort(instancedMesh);
-
-        console.log(bvh)
     
         instancedMesh.instanceMatrix.needsUpdate = true;
         return instancedMesh;

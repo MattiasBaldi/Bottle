@@ -1,11 +1,12 @@
 import * as THREE from 'three'
+import gsap from 'gsap'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
 import particlesVertexShader from './shaders/particles/vertex.glsl'
 import particlesFragmentShader from './shaders/particles/fragment.glsl'
-
+import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 import Spice from './sampler/spice.js'
 import TopSurface from "./sampler/topsurface.js";
 
@@ -71,21 +72,25 @@ cameraFolder.add(camera, 'far').min(0).max(1000).step(1).name('Far').onChange(()
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-// controls.enableDamping = true
-// controls.minDistance = 3.5; 
-// controls.maxDistance = 4;
-// controls.enablePan = false; 
 
-// // Limit controls to horizontal rotation only
-// controls.maxPolarAngle = Math.PI / 2; // Prevent camera from going below the object
-// controls.minPolarAngle = Math.PI / 2; // Prevent camera from going above the object
+const controlsFolder = debug.addFolder('Controls');
+const controlsParams = { enableControls: false };
+
+controlsFolder.add(controlsParams, 'enableControls').name('Disable Controls').onChange((enabled) => {
+    controls.enableDamping = enabled;
+    controls.minDistance = enabled ? 3.5 : 0;
+    controls.maxDistance = enabled ? 4 : Infinity;
+    controls.enablePan = enabled ? false : true;
+    controls.maxPolarAngle = enabled ? Math.PI / 2 : Math.PI;
+    controls.minPolarAngle = enabled ? Math.PI / 2 : 0;
+});
 
 /**
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
-    antialias: true
+    antialias: false
 })
 
 renderer.setSize(sizes.width, sizes.height)
@@ -99,7 +104,12 @@ const textureLoader = new THREE.TextureLoader()
 const sprites =
 {
     pepperCorn: textureLoader.load('./textures/sprites/pepperCorn.png'), 
+    sugarCube: textureLoader.load('./textures/sprites/sugarCube.png'), 
+    basilLeaf: textureLoader.load('./textures/sprites/basilLeaf.png'), 
+    sugar: textureLoader.load('./textures/sprites/sugar.png'), 
 }
+
+
 
 // Set sRGB encoding for all sprites
 Object.values(sprites).forEach(sprite => {
@@ -142,9 +152,14 @@ async function loadModels() {
 // init experience function
 function initExperience() {
 
+    console.log((spiceModels))
 /**
  * JAR
  */
+
+// group
+const group = new THREE.Group()
+scene.add(group)
 
 // Material
 const glassMaterial = new THREE.MeshPhysicalMaterial({
@@ -157,7 +172,7 @@ const glassMaterial = new THREE.MeshPhysicalMaterial({
     envMapIntensity: 1.0, // Ensure environment map intensity is set
     // clearcoat: 0.1, // Add a small clearcoat for better reflections
     // clearcoatRoughness: 0.1, // Slight roughness for clearcoat
-    side: THREE.DoubleSide,
+    side: THREE.FrontSide,
 });
 
 // Geometry
@@ -167,13 +182,13 @@ jar.name = 'jar'
 jar.scale.setScalar(1)
 jar.position.set(0, 0, 0)
 jar.material = glassMaterial
-scene.add(jar)
+group.add(jar)
 
 
 // BoxHelper
 const boxHelper = new THREE.BoxHelper(jar, 0xff0000);
 boxHelper.visible = false; 
-scene.add(boxHelper);
+group.add(boxHelper);
 
 
 // Debug
@@ -307,11 +322,11 @@ const spices =
         collisionDistance: 0.1
         },
 
-        sugar:
+    sugar:
         {
         type: 'mesh', // Determine what is used
-        mesh: spiceModels.scene.getObjectByName('Sugar'), 
-        count: 10000,
+        mesh: spiceModels.scene.getObjectByName('sugar'), 
+        count: 1000,
         size: 1,
         collisionDistance: 0.1
     },
@@ -320,8 +335,8 @@ const spices =
     {
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('basil'), 
-        count: 100,
-        size: 0.001,
+        count: 700,
+        size: 0.75,
         collisionDistance: 0.01
     },
 
@@ -330,24 +345,25 @@ const spices =
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('star_anise'), 
         count: 100,
-        size: 0.01,
+        size: 0.3,
         collisionDistance: 0.01
     },
 
     cloves:
     {
         type: 'mesh', // Determine what is used
-        mesh: spiceModels.scene.getObjectByName('retopo_cloves'), 
+        mesh: spiceModels.scene.getObjectByName('cloves'), 
         count: 100,
         size: 0.01,
         collisionDistance: 0.01
     },
 
-    pepper:
+    pepperPoints:
     {
         type: 'points', // Determine what is used
         mesh: null,
         count: 10000,
+        size: 0.15,
         material: new THREE.PointsMaterial
         ({
             size: 0.15,
@@ -355,7 +371,51 @@ const spices =
             map: sprites.pepperCorn,
             alphaTest: 1, // Enable alpha testing to discard low alpha pixels
         })
+    },
 
+    sugarCubePoints:
+    {
+        type: 'points', // Determine what is used
+        mesh: null,
+        count: 30000,
+        size: 0.15,
+        material: new THREE.PointsMaterial
+        ({
+            size: 0.1,
+            sizeAttenuation: true,
+            map: sprites.sugarCube,
+            alphaTest: 1, // Enable alpha testing to discard low alpha pixels
+        })
+    },
+
+    sugarPoints:
+    {
+        type: 'points', // Determine what is used
+        mesh: null,
+        count: 1200,
+        size: 0.1,
+        material: new THREE.PointsMaterial
+        ({
+            size: 0.08,
+            // sizeAttenuation: true,
+            map: sprites.sugar,
+            alphaTest: 0.9, // Enable alpha testing to discard low alpha pixels
+        })
+    },
+
+    basilLeaf:
+    {
+        type: 'points', // Determine what is used
+        mesh: null,
+        count: 1000,
+        size: 0.5,
+        material: new THREE.PointsMaterial
+        ({
+            size: 0.5,
+            // sizeAttenuation: true,
+            map: sprites.basilLeaf,
+            alphaTest: 0.9, // Enable alpha testing to discard low alpha pixels
+        })
     },
 }
 
@@ -381,7 +441,7 @@ function removeSpice(spiceName) {
     console.log(spice)
     if(spice.points)
     {
-        scene.remove(spice.points)
+        group.remove(spice.points)
         spice.points.geometry.dispose();
         spice.points.material.dispose();
         spice.points = null;
@@ -401,16 +461,15 @@ const topSpice = Object.values(jar.content.spices).reduce((highest, spice) =>
 // remove existing mesh
 if (jar.content.topSurface.mesh) 
 {
-    scene.remove(jar.content.topSurface.mesh);
+    group.remove(jar.content.topSurface.mesh);
     jar.content.topSurface.geometry.dispose();
     jar.content.topSurface.material.dispose();
-
 }
 
 // remove existing points
 if (jar.content.topSurface.points) 
 {
-    scene.remove(jar.content.topSurface.points)
+    group.remove(jar.content.topSurface.points)
     jar.content.topSurface.points.geometry.dispose();
     jar.content.topSurface.points.material.dispose();
     jar.content.topSurface.points = null;
@@ -418,18 +477,18 @@ if (jar.content.topSurface.points)
 
 // add top
 jar.content.topSurface.set(topSpice.endY) // set mesh position
-// scene.add(jar.content.topSurface.mesh) // show mesh 
+// group.add(jar.content.topSurface.mesh) // show mesh 
 
 // create points
 jar.content.topSurface.points = topSpice.createTop(jar.content.topSurface.mesh, jar.content.topSurface.mesh.position.y, jar.content.topSurface.mesh.position.y)
-scene.add(jar.content.topSurface.points)
+group.add(jar.content.topSurface.points)
 }
 
 function calculatePoints(spice, startPercentage, endPercentage)
 {
         // remove
         if (spice.points) {
-            scene.remove(spice.points)
+            group.remove(spice.points)
             spice.points.geometry.dispose();
             spice.points.material.dispose();
             spice.points = null;
@@ -438,9 +497,48 @@ function calculatePoints(spice, startPercentage, endPercentage)
         spice.startPercentage = startPercentage; // Y%
         spice.endPercentage = endPercentage; // Y%
         spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage); // declare type in spices params to change mesh/points
-        scene.add(spice.points);
+        group.add(spice.points);
     
         sampleTop()
+}
+
+function convertToMesh()
+{
+
+}
+
+function mixSpices()
+{
+
+    // retrieve all spices
+    
+    // create new spices
+
+    // clear all old ones
+
+    // convert to one mesh
+    const instancedMesh = new InstancedMesh2(this.params.mesh.geometry, this.params.mesh.material, { capacity: sampledCount });
+    instancedMesh.addInstances(sampledCount, (obj, index) => {
+        const i3 = index * 3;
+
+        // Position
+        obj.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
+
+        // Setting normals
+        const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
+
+        // Setting rotation towards 0,0,0 depending on the normal at given position
+        const euler = new THREE.Euler().setFromVector3(normal);
+        obj.quaternion.setFromEuler(euler);
+
+        obj.scale.set(this.params.size, this.params.size, this.params.size)
+
+        // Update matrix
+        obj.updateMatrix();
+    });
+
+    // add it to the scene
+    group.add(instancedMesh)
 }
 
 /**
@@ -489,10 +587,16 @@ function createSpiceDropdown() {
         */
     
         // count
-        spicePanel.count = spiceFolder.add(spice.params, 'count').min(0).max(10000).onChange(() => 
+        spicePanel.count = spiceFolder.add(spice.params, 'count').min(0).max(100000).onChange(() => 
         {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
         }).name('Count (when jar is filled)')
+
+        // start
+        spicePanel.start = spiceFolder.add(spice.params, 'size').min(0).max(2).onChange((value) => 
+        {
+            calculatePoints(spice, value, spice.endPercentage); 
+        });
     
         // start
         spicePanel.start = spiceFolder.add(spice, 'startPercentage').min(0).max(100).onChange((value) => 
@@ -511,14 +615,44 @@ function createSpiceDropdown() {
          
             spiceFolder.destroy();
             removeSpice(spiceName)
+            spicesInJar -= 1; 
+            console.log('spices in the jar', spicesInJar); 
         }}, 'remove').name('Remove');
     });
 }
 
+// add button
+let spicesInJar = 0; 
+spicesFolder.add({ addSpice: () => {
+    if (spicesInJar < 7) {
+        createSpiceDropdown();
+        spicesInJar += 1; 
+        console.log('spices in the jar', spicesInJar); 
+    } else {
+        console.log('Cannot add more than 7 spices');
+    }
+}}, 'addSpice').name('Add Spice');
 
-// init button
-spicesFolder.add({ addSpice: createSpiceDropdown }, 'addSpice').name('Add Spice');
+
+// optimize button
+spicesFolder.add({ optimize: () => {
+    if (spicesInJar > 0) {
+        // Give the jar a spin using GSAP
+        const spinDuration = 1; // duration in seconds
+        const spinAngle = Math.PI * 2; // 360 degrees
+
+        gsap.to(group.rotation, {
+            y: group.rotation.y + spinAngle,
+            duration: spinDuration,
+            ease: "power1.inOut"
+        });
+    } else {
+        console.log('No spices in the jar to optimize');
+    }
+}}, 'optimize').name('Optimize');
+
 }
+
 
 // begin experience
 loadModels();
@@ -556,6 +690,8 @@ const tick = () =>
 
     // Render
     renderer.render(scene, camera)
+
+
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)

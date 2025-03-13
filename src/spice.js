@@ -7,7 +7,6 @@ import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 export default class Spice {
     constructor(params) 
     {
-
         // Parameters
         this.params = params;
         this.type = this.params.type; // instances or points
@@ -19,25 +18,11 @@ export default class Spice {
     }
 
     create(mesh, start, end) {
-        const { normals, rotations, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, this.params.count, this.params.type === 'points');
+        const { rotations, normals, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, this.params.count, this.params.type === 'points');
         if (this.params.type === 'points') {
-            return this.#createPoints(rotations, positions, colors, sampledCount);
+            return this.#createPoints(positions, colors, sampledCount);
         } else if (this.params.type === 'mesh') {
-            return this.#createInstancedMesh(normals, positions, sampledCount);
-        }
-    }
-
-    createTop(mesh, start, end) {
-        let topPoints = null;
-        const count = this.params.count
-
-        const { normals, rotations, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, count * 0.1, this.params.type === 'points');
-        if (this.params.type === 'points') {
-            topPoints = this.#createPoints(positions, colors, sampledCount);
-            return topPoints; 
-        } else if (this.params.type === 'mesh') {
-            topPoints = this.#createInstancedMesh(normals, rotations, positions, sampledCount);
-            return topPoints; 
+            return this.#createInstancedMesh(rotations, normals, positions, sampledCount);
         }
     }
 
@@ -49,11 +34,13 @@ export default class Spice {
         pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
         pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
+        this.params.material.size = this.params.size
+
         return points = new THREE.Points(pointsGeometry, this.params.material);
     }
 
     // Instances
-    #createInstancedMesh(normals, positions, sampledCount) {
+    #createInstancedMesh(rotations, normals, positions, sampledCount) {
         
         const instancedMesh = new InstancedMesh2(this.params.mesh.geometry, this.params.mesh.material, { capacity: sampledCount });
 
@@ -65,13 +52,16 @@ export default class Spice {
     
             // Position
             obj.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-    
-            // Setting normals
-            const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
-    
-            // Setting rotation towards 0,0,0 depending on the normal at given position
-            const euler = new THREE.Euler().setFromVector3(normal);
+
+            // Setting rotation
+            const rotation = new THREE.Vector3(rotations[i3], rotations[i3 + 1], rotations[i3 + 2]);
+            const euler = new THREE.Euler().setFromVector3(rotation);
             obj.quaternion.setFromEuler(euler);
+    
+            // // Setting rotation from normals
+            // const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
+            // const euler = new THREE.Euler().setFromVector3(normal);
+            // obj.quaternion.setFromEuler(euler);
 
             obj.scale.set(this.params.size, this.params.size, this.params.size)
     
@@ -84,7 +74,7 @@ export default class Spice {
     }
 
     // Surface Sampler
-    #samplePoints(mesh, startPercentage, endPercentage, count, includeColors) {
+    #samplePoints(mesh, startPercentage, endPercentage, count, includeColors, top = true) {
 
         if(mesh.geometry.boundingBox) {
         const height = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
@@ -106,26 +96,51 @@ export default class Spice {
         for (let i = 0; i < count; i++) {
             sampler.sample(position, normal, color);
 
-            if (position.y >= this.startY && position.y <= this.endY) {
-            position.multiplyScalar(0.96);
+            /* 
+            * Y Positioning
+            */
+            position.y = THREE.MathUtils.clamp(position.y, this.startY, this.endY);
+           
+            // Sample top if true
+            if(top)
+            {
+            if (position.y === this.endY) {
+                const factor = Math.random() * Math.random(); // Adjust the factor range for different density
+                position.x = THREE.MathUtils.lerp(position.x, 0, factor);
+                position.z = THREE.MathUtils.lerp(position.z, 0, factor);
+                position.y += Math.random() * 0.1 - 0.05; // add offset
+            }
+            } 
+
+            // skip bottom
+            if (position.y === this.startY) {
+                continue; // Skip points at the bottom
+            }
+
+            /* 
+            * Fake collision detection
+            */
+
+            // Randomize rotation
+            rotations.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
+
+            // 'Collision' with bottle depending on size
+            position.x *= (1 - (this.params.size * 0.4)); // ensure positioned inside
+            position.z *= (1 - (this.params.size * 0.4)); // ensure positioned inside
+            position.y *= (1 - (this.params.size * 0.25)); // ensure positioned inside
+
+            // 'Collision' with each other and 'gravity' meaning stack on one another, bottom up.
+
+            
+            // Set
             positions.set([position.x, position.y, position.z], sampledCount * 3);
-
-            // set normal at specified point
             normals.set([normal.x, normal.y, normal.z], sampledCount * 3);
-
-            // Include color at each point
-            if (includeColors) {
-                color.set(Math.random(), Math.random(), Math.random());
-                colors.set([color.r, color.g, color.b], sampledCount * 3);
-            }
-
-            // Fill rotation array
             rotations.set([rotation.x, rotation.y, rotation.z], sampledCount * 3);
-
             sampledCount++;
-            }
+
         }
 
         return { normals, rotations, positions, colors, sampledCount };
     }
+
 }

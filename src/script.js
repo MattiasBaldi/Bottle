@@ -52,6 +52,7 @@ const sizes = {
 /**
  * Camera
  */
+
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
 camera.position.x = 0
@@ -71,10 +72,8 @@ cameraFolder.add(camera, 'far').min(0).max(1000).step(1).name('Far').onChange(()
 
 // Controls
 const controls = new OrbitControls(camera, canvas)
-
 const controlsFolder = debug.addFolder('Controls');
 const controlsParams = { enableControls: false };
-
 controlsFolder.add(controlsParams, 'enableControls').name('Disable Controls').onChange((enabled) => {
     controls.enableDamping = enabled;
     controls.minDistance = enabled ? 3.5 : 0;
@@ -297,14 +296,14 @@ const spices =
 {
 
     // Instances 
-
     wormwood:
     {
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('wormwood'), 
         size: 1,
         count: 500,
-        collisionDistance: 0.1
+        collisionDistance: 0.1,
+        alphaTest: 1, 
         },
 
     sugar:
@@ -313,7 +312,8 @@ const spices =
         mesh: spiceModels.scene.getObjectByName('sugar'), 
         count: 1000,
         size: 1,
-        collisionDistance: 0.1
+        collisionDistance: 0.1,
+        alphaTest: 1, 
     },
 
     basil:
@@ -322,7 +322,8 @@ const spices =
         mesh: spiceModels.scene.getObjectByName('basil'), 
         count: 700,
         size: 0.75,
-        collisionDistance: 0.01
+        collisionDistance: 0.01,
+        alphaTest: 1, 
     },
 
     anise:
@@ -331,7 +332,9 @@ const spices =
         mesh: spiceModels.scene.getObjectByName('star_anise'), 
         count: 100,
         size: 0.3,
-        collisionDistance: 0.01
+        collisionDistance: 0.01,
+        alphaTest: 1, 
+
     },
 
     cloves:
@@ -340,11 +343,11 @@ const spices =
         mesh: spiceModels.scene.getObjectByName('cloves'), 
         count: 100,
         size: 0.01,
-        collisionDistance: 0.01
+        collisionDistance: 0.01,
+        alphaTest: 1, 
     },
 
     // Sprites
-
     pepperPoints:
     {
         type: 'points', // Determine what is used
@@ -409,11 +412,8 @@ const spices =
 /**
  * Jar content
  */
-
 jar.content = {}
 jar.content.spices = {}
-jar.content.topSurface = new YLevelPlane(jar, jar.geometry.boundingBox.min.y); // Top
-
 
 /**
  * Logic
@@ -422,11 +422,11 @@ jar.content.topSurface = new YLevelPlane(jar, jar.geometry.boundingBox.min.y); /
 function addSpice(spiceName) {
     const spice = new Spice(spices[spiceName]);
     jar.content.spices[spiceName] = spice;
+    jar.content.spices[spiceName].isTop = null; 
 }
 
 function removeSpice(spiceName) {
     const spice = jar.content.spices[spiceName]
-    console.log(spice)
     if(spice.points)
     {
         group.remove(spice.points)
@@ -435,41 +435,10 @@ function removeSpice(spiceName) {
         spice.points = null;
     }
 
-    sampleTop()
     delete jar.content.spices[spiceName];
+    // sampleTop()
+
     
-}
-
-function sampleTop()
-{
-const topSpice = Object.values(jar.content.spices).reduce((highest, spice) => 
-    (spice.endPercentage > highest.endPercentage) ? spice : highest
-);
-
-// remove existing mesh
-if (jar.content.topSurface.mesh) 
-{
-    group.remove(jar.content.topSurface.mesh);
-    jar.content.topSurface.geometry.dispose();
-    jar.content.topSurface.material.dispose();
-}
-
-// add top mesh
-jar.content.topSurface.set(topSpice.endY) // set mesh
-// group.add(jar.content.topSurface.mesh) // show mesh 
-
-// remove existing points
-if (jar.content.topSurface.points) 
-{
-    group.remove(jar.content.topSurface.points)
-    jar.content.topSurface.points.geometry.dispose();
-    jar.content.topSurface.points.material.dispose();
-    jar.content.topSurface.points = null;
-}
-
-// add top points
-jar.content.topSurface.points = topSpice.createTop(jar.content.topSurface.mesh, jar.content.topSurface.mesh.position.y, jar.content.topSurface.mesh.position.y)
-group.add(jar.content.topSurface.points)
 }
 
 function calculatePoints(spice, startPercentage, endPercentage)
@@ -484,50 +453,26 @@ function calculatePoints(spice, startPercentage, endPercentage)
     
         spice.startPercentage = startPercentage; // Y%
         spice.endPercentage = endPercentage; // Y%
-        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage); // declare type in spices params to change mesh/points
+
+        // if(isTop)
+        // {
+        //     spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
+        //     spice.isTop = true; 
+        // }
+        // else 
+        // {
+        //     spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage); // declare type in spices params to change mesh/points
+        //     spice.isTop = false; 
+        // }
+
+        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
         group.add(spice.points);
-    
-        sampleTop()
 }
 
-function instanceMesh()
-{
-
-}
-
-function mixSpices()
-{
-
-    // retrieve all spices
-    
-    // create new spices
-
-    // clear all old ones
-
-    // convert to one mesh
-    const instancedMesh = new InstancedMesh2(this.params.mesh.geometry, this.params.mesh.material, { capacity: sampledCount });
-    instancedMesh.addInstances(sampledCount, (obj, index) => {
-        const i3 = index * 3;
-
-        // Position
-        obj.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
-
-        // Setting normals
-        const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
-
-        // Setting rotation towards 0,0,0 depending on the normal at given position
-        const euler = new THREE.Euler().setFromVector3(normal);
-        obj.quaternion.setFromEuler(euler);
-
-        obj.scale.set(this.params.size, this.params.size, this.params.size)
-
-        // Update matrix
-        obj.updateMatrix();
-    });
-
-    // add it to the scene
-    group.add(instancedMesh)
-}
+// function mixSpices()
+// {
+//     for
+// }
 
 /**
  * Panel
@@ -550,6 +495,7 @@ function createSpiceDropdown() {
     
     spiceFolder.add(spiceParams, 'selectedSpice', spiceOptions).name('Select Spice').onChange((spiceName) => {
         
+
         // clear everything
         if(currentSpice)
         {
@@ -559,6 +505,7 @@ function createSpiceDropdown() {
         if (Object.keys(spicePanel).length > 0) {
             spicePanel.count.destroy();
             spicePanel.start.destroy();
+            spicePanel.size.destroy();
             spicePanel.end.destroy();
             spicePanel.removeButton.destroy();  
         }
@@ -568,7 +515,8 @@ function createSpiceDropdown() {
         const spice = jar.content.spices[spiceName];
         currentSpice = spiceName
         spice.startPercentage = 0; 
-        spice.endPercentage = 0; 
+        spice.endPercentage = 0;
+        console.log('jar content', jar.content); 
         
         /*
         SLIDERS
@@ -578,33 +526,36 @@ function createSpiceDropdown() {
         spicePanel.count = spiceFolder.add(spice.params, 'count').min(0).max(100000).onChange(() => 
         {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
+            console.log('jar content', jar.content); 
         }).name('Count (when jar is filled)')
 
         // start
-        spicePanel.start = spiceFolder.add(spice.params, 'size').min(0).max(2).onChange((value) => 
+        spicePanel.size = spiceFolder.add(spice.params, 'size').min(0).max(2).onChange((value) => 
         {
             calculatePoints(spice, value, spice.endPercentage); 
+            console.log('jar content', jar.content); 
         });
     
         // start
         spicePanel.start = spiceFolder.add(spice, 'startPercentage').min(0).max(100).onChange((value) => 
         {
             calculatePoints(spice, value, spice.endPercentage); 
+            console.log('jar content', jar.content); 
         });
     
         // end
         spicePanel.end = spiceFolder.add(spice, 'endPercentage').min(0).max(100).onChange((value) => 
         {
             calculatePoints(spice, spice.startPercentage, value); 
+            console.log('jar content', jar.content); 
         });
       
         // self destruct button
         spicePanel.removeButton = spiceFolder.add({ remove: () => {
-         
             spiceFolder.destroy();
             removeSpice(spiceName)
+            console.log('jar content', jar.content); 
             spicesInJar -= 1; 
-            console.log('spices in the jar', spicesInJar); 
         }}, 'remove').name('Remove');
     });
 }
@@ -613,11 +564,10 @@ function createSpiceDropdown() {
 spicesFolder.add({ addSpice: () => {
     if (spicesInJar < 7) {
         createSpiceDropdown();
+        console.log('jar content', jar.content); 
         spicesInJar += 1; 
-        console.log('spices in the jar', spicesInJar); 
-        console.log(jar.content)
     } else {
-        console.log('Cannot add more than 7 spices');
+        
     }
 }}, 'addSpice').name('Add Spice');
 
@@ -638,8 +588,6 @@ spicesFolder.add({ optimize: () => {
         console.log('No spices in the jar to optimize');
     }
 }}, 'optimize').name('Optimize');
-
-
 }
 
 // load models and begin experience when ready

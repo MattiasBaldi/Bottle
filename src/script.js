@@ -4,11 +4,9 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import GUI from 'lil-gui'
-import particlesVertexShader from './shaders/sprites/vertex.glsl'
-import particlesFragmentShader from './shaders/sprites/fragment.glsl'
-import { InstancedMesh2 } from '@three.ez/instanced-mesh'
+import spritesVertexShader from './shaders/sprites/vertex.glsl'
+import spritesFragmentShader from './shaders/sprites/fragment.glsl'
 import Spice from './spice.js'
-import YLevelPlane from "./utils/YLevelPlane.js";
 
 /**
  * Base
@@ -234,88 +232,67 @@ bottleFolder.add(glassMaterial, 'clearcoatRoughness').min(0).max(1).step(0.01).n
  * Spices
  */
 
-const shaderMaterial = new THREE.ShaderMaterial
-({
+// const shaderMaterial = new THREE.ShaderMaterial
+// ({
 
-    //             vertexShader: particlesVertexShader, 
-    //             fragmentShader: particlesFragmentShader,
-    //             uniforms: 
-    //             {
-    //                 uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()), // Also adds size attentuation
+//                 vertexShader: spritesVertexShader, 
+//                 fragmentShader: spritesFragmentShader,
+//                 uniforms: 
+//                 {
+//                     uSize: new THREE.Uniform(fill.pointSize * renderer.getPixelRatio()), // Also adds size attentuation
         
-    //                 // Colors
-    //                 uColorOne: new THREE.Uniform(new THREE.Color(fill.colorOne)),
-    //                 uColorTwo: new THREE.Uniform(new THREE.Color(fill.colorTwo)),
-    //                 uColorThree: new THREE.Uniform(new THREE.Color(fill.colorThree)),
-    //                 uSaturation: new THREE.Uniform(1.0),
-    //                 uBrightness: new THREE.Uniform(1.0),
+//                     // Colors
+//                     uColorOne: new THREE.Uniform(new THREE.Color(fill.colorOne)),
+//                     uColorTwo: new THREE.Uniform(new THREE.Color(fill.colorTwo)),
+//                     uColorThree: new THREE.Uniform(new THREE.Color(fill.colorThree)),
+//                     uSaturation: new THREE.Uniform(1.0),
+//                     uBrightness: new THREE.Uniform(1.0),
         
-    //                 // Textures || Sprites
-    //                 uSprite: new THREE.Uniform(),
-    //                 uSpriteNormal: new THREE.Uniform(),
-    //                 uSpriteRoughness: new THREE.Uniform(),
+//                     // Textures || Sprites
+//                     uSprite: new THREE.Uniform(),
+//                     uSpriteNormal: new THREE.Uniform(),
+//                     uSpriteRoughness: new THREE.Uniform(),
         
-    //                 // Variation
-    //                 uScaleRandomness: new THREE.Uniform(),
-    //                 uRotationRandomness: new THREE.Uniform(),
+//                     // Variation
+//                     uScaleRandomness: new THREE.Uniform(),
+//                     uRotationRandomness: new THREE.Uniform(),
         
-    //                 // Details
-    //                 uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
-    //                 uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
-    //                 uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
-    //                 uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
+//                     // Details
+//                     uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
+//                     uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
+//                     uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
+//                     uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
         
-    //                 // Extra
-    //                 // Granularity & Clumping
-    //                 // uGranularity: Defines whether the spice is a fine powder or coarse (adjust particle size distribution).
-    //                 // uClumping: Adjusts how particles stick together (use slight attraction forces).
-    //                 // uDryness: Controls how dusty or moist the spice looks (affects roughness and opacity).
-    //                 // uDustiness: Adds a subtle overlay for aged or powdered spices.
+//                     // Extra
+//                     // Granularity & Clumping
+//                     // uGranularity: Defines whether the spice is a fine powder or coarse (adjust particle size distribution).
+//                     // uClumping: Adjusts how particles stick together (use slight attraction forces).
+//                     // uDryness: Controls how dusty or moist the spice looks (affects roughness and opacity).
+//                     // uDustiness: Adds a subtle overlay for aged or powdered spices.
         
-    //                 // uJitter: Adds randomness to size and position to prevent uniform-looking particles.
-    //                 // uSizeVariation: Adjusts particle sizes for a natural, uneven look.
+//                     // uJitter: Adds randomness to size and position to prevent uniform-looking particles.
+//                     // uSizeVariation: Adjusts particle sizes for a natural, uneven look.
         
-    //                 /*
-    //                 Performance Considerations
-    //                 The biggest performance hits come from:
+//                     /*
+//                     Performance Considerations
+//                     The biggest performance hits come from:
         
-    //                 Textures: Large or multiple textures can slow rendering. Use smaller, compressed textures or a texture atlas.
-    //                 Transparency & Blending: Overlapping semi-transparent particles require sorting, which is expensive.
-    //                 Per-Pixel Computation: Complex fragment shader operations like noise functions, lighting, and procedural textures are costly.
-    //                 Particle Count: More particles mean more draw calls. Batch rendering and instancing help.
-    //                 High-Precision Math: Avoid excessive conditionals or loops in shaders.
-    //                 */
+//                     Textures: Large or multiple textures can slow rendering. Use smaller, compressed textures or a texture atlas.
+//                     Transparency & Blending: Overlapping semi-transparent particles require sorting, which is expensive.
+//                     Per-Pixel Computation: Complex fragment shader operations like noise functions, lighting, and procedural textures are costly.
+//                     Particle Count: More particles mean more draw calls. Batch rendering and instancing help.
+//                     High-Precision Math: Avoid excessive conditionals or loops in shaders.
+//                     */
           
-    //             },
-    //             transparent: true,
-    //             depthWrite: false
-    //         })
-})
+//                 },
+//                 transparent: true,
+//                 depthWrite: false
+// })
 
 const spices = 
 {
 
     // Instances 
-    wormwood:
-    {
-        type: 'mesh', // Determine what is used
-        mesh: spiceModels.scene.getObjectByName('wormwood'), 
-        size: 1,
-        count: 500,
-        collisionDistance: 0.1,
-        alphaTest: 1, 
-    },
-
-    sugar:
-    {
-        type: 'mesh', // Determine what is used
-        mesh: spiceModels.scene.getObjectByName('sugar'), 
-        count: 1000,
-        size: 1,
-        collisionDistance: 0.1,
-        alphaTest: 1, 
-    },
-
     basil:
     {
         type: 'mesh', // Determine what is used
@@ -340,8 +317,8 @@ const spices =
     {
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('cloves'), 
-        count: 100,
-        size: 0.01,
+        count: 800,
+        size: 0.5,
         collisionDistance: 0.01,
         alphaTest: 1, 
     },
@@ -362,47 +339,17 @@ const spices =
         })
     },
 
-    sugarCubePoints:
-    {
-        type: 'points', // Determine what is used
-        mesh: null,
-        count: 30000,
-        size: 0.15,
-        material: new THREE.PointsMaterial
-        ({
-            size: 0.1,
-            sizeAttenuation: true,
-            map: sprites.sugarCube,
-            alphaTest: 1, // Enable alpha testing to discard low alpha pixels
-        })
-    },
-
     sugarPoints:
     {
         type: 'points', // Determine what is used
         mesh: null,
         count: 1200,
-        size: 0.1,
+        size: 0.35,
         material: new THREE.PointsMaterial
         ({
             size: 0.08,
             // sizeAttenuation: true,
             map: sprites.sugar,
-            alphaTest: 0.9, // Enable alpha testing to discard low alpha pixels
-        })
-    },
-
-    basilLeaf:
-    {
-        type: 'points', // Determine what is used
-        mesh: null,
-        count: 1000,
-        size: 0.5,
-        material: new THREE.PointsMaterial
-        ({
-            size: 0.5,
-            // sizeAttenuation: true,
-            map: sprites.basilLeaf,
             alphaTest: 0.9, // Enable alpha testing to discard low alpha pixels
         })
     },
@@ -484,7 +431,6 @@ function recalculateTop() {
         }
     });
 }
-
 
 /**
  * Panel

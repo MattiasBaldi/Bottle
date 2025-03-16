@@ -52,14 +52,14 @@ export default class Spice {
             obj.position.set(positions[i3], positions[i3 + 1], positions[i3 + 2]);
 
             // Setting rotation
-            const rotation = new THREE.Vector3(rotations[i3], rotations[i3 + 1], rotations[i3 + 2]);
-            const euler = new THREE.Euler().setFromVector3(rotation);
-            obj.quaternion.setFromEuler(euler);
+            // const rotation = new THREE.Vector3(rotations[i3], rotations[i3 + 1], rotations[i3 + 2]);
+            // const euler = new THREE.Euler().setFromVector3(rotation);
+            // obj.quaternion.setFromEuler(euler);
     
             // // Setting rotation from normals
-            // const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
-            // const euler = new THREE.Euler().setFromVector3(normal);
-            // obj.quaternion.setFromEuler(euler);
+            const normal = new THREE.Vector3(normals[i3], normals[i3 + 1], normals[i3 + 2]);
+            const euler = new THREE.Euler().setFromVector3(normal);
+            obj.quaternion.setFromEuler(euler);
 
             obj.scale.set(this.params.size, this.params.size, this.params.size)
     

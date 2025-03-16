@@ -1,7 +1,5 @@
 import * as THREE from 'three';
-import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
-import instanceSampler from './utils/sampler/instanceSampler.js'
-import pointsSampler from './utils/sampler/pointsSampler.js'
+import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 
 export default class Spice {
@@ -17,22 +15,22 @@ export default class Spice {
         this.endY = null;
     }
 
-    create(mesh, start, end) {
-        const { rotations, normals, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, this.params.count, this.params.type === 'points');
+    create(mesh, start, end, top) {
+        const { rotations, normals, positions, colors, sampledCount } = this.#samplePoints(mesh, start, end, this.params.count, top);
         if (this.params.type === 'points') {
-            return this.#createPoints(positions, colors, sampledCount);
+            return this.#createPoints(positions, sampledCount);
         } else if (this.params.type === 'mesh') {
             return this.#createInstancedMesh(rotations, normals, positions, sampledCount);
         }
     }
 
     // Points with sprite textures
-    #createPoints(positions, colors, sampledCount) {
+    #createPoints(positions, sampledCount) {
         let points = null; 
         const pointsGeometry = new THREE.BufferGeometry();
         const adjustedPositions = positions.subarray(0, sampledCount * 3);
         pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
-        pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        // pointsGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         this.params.material.size = this.params.size
 
@@ -74,7 +72,7 @@ export default class Spice {
     }
 
     // Surface Sampler
-    #samplePoints(mesh, startPercentage, endPercentage, count, includeColors, top = true) {
+    #samplePoints(mesh, startPercentage, endPercentage, count, top = false, includeColors) {
 
         if(mesh.geometry.boundingBox) {
         const height = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
@@ -125,8 +123,8 @@ export default class Spice {
             rotations.set([Math.random(), Math.random(), Math.random()], sampledCount * 3);
 
             // 'Collision' with bottle depending on size
-            position.x *= (1 - (this.params.size * 0.4)); // ensure positioned inside
-            position.z *= (1 - (this.params.size * 0.4)); // ensure positioned inside
+            position.x *= (1 - (this.params.size * 0.25)); // ensure positioned inside
+            position.z *= (1 - (this.params.size * 0.25)); // ensure positioned inside
             position.y *= (1 - (this.params.size * 0.25)); // ensure positioned inside
 
             // 'Collision' with each other and 'gravity' meaning stack on one another, bottom up.

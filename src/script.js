@@ -304,10 +304,10 @@ const spices =
         count: 500,
         collisionDistance: 0.1,
         alphaTest: 1, 
-        },
+    },
 
     sugar:
-        {
+    {
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('sugar'), 
         count: 1000,
@@ -334,7 +334,6 @@ const spices =
         size: 0.3,
         collisionDistance: 0.01,
         alphaTest: 1, 
-
     },
 
     cloves:
@@ -436,9 +435,7 @@ function removeSpice(spiceName) {
     }
 
     delete jar.content.spices[spiceName];
-    // sampleTop()
-
-    
+    // sampleTop()    
 }
 
 function calculatePoints(spice, startPercentage, endPercentage)
@@ -453,26 +450,41 @@ function calculatePoints(spice, startPercentage, endPercentage)
     
         spice.startPercentage = startPercentage; // Y%
         spice.endPercentage = endPercentage; // Y%
-
-        // if(isTop)
-        // {
-        //     spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
-        //     spice.isTop = true; 
-        // }
-        // else 
-        // {
-        //     spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage); // declare type in spices params to change mesh/points
-        //     spice.isTop = false; 
-        // }
-
-        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
+        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);  
         group.add(spice.points);
+
+
+        recalculateTop();
 }
 
-// function mixSpices()
-// {
-//     for
-// }
+function recalculateTop() {
+    // Clear prior top
+    Object.values(jar.content.spices).forEach(spice => {
+        if (spice.isTop) {
+            group.remove(spice.points);
+            spice.points.geometry.dispose();
+            spice.points.material.dispose();
+            spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
+            group.add(spice.points);
+            spice.isTop = false; 
+        }
+    });
+
+    // Recalculate new spiceTop
+    Object.values(jar.content.spices).forEach(spice => {
+        if (spice.endPercentage === Math.max(...Object.values(jar.content.spices).map(s => s.endPercentage))) {
+            spice.isTop = true;
+            console.log('TopSpice is: ', spice)
+            group.remove(spice.points);
+            spice.points.geometry.dispose();
+            spice.points.material.dispose();
+            spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage, true); // setting to true to include the top
+            group.add(spice.points);
+        
+        }
+    });
+}
+
 
 /**
  * Panel

@@ -308,7 +308,7 @@ const spices =
         type: 'mesh', // Determine what is used
         mesh: spiceModels.scene.getObjectByName('star_anise'), 
         count: 100,
-        size: 0.3,
+        size: 0.8,
         collisionDistance: 0.01,
         alphaTest: 1, 
     },
@@ -343,13 +343,13 @@ const spices =
     {
         type: 'points', // Determine what is used
         mesh: null,
-        count: 1200,
-        size: 0.35,
+        count: 42000,
+        size: 0.07,
         material: new THREE.PointsMaterial
         ({
             size: 0.08,
             // sizeAttenuation: true,
-            map: sprites.sugar,
+            map: sprites.sugarCube,
             alphaTest: 0.9, // Enable alpha testing to discard low alpha pixels
         })
     },

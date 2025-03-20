@@ -1,10 +1,12 @@
 uniform float uSize;
+uniform float uRotationRandomness; 
+uniform float uScaleRandomness; 
 
-// attributes
-attribute vec3 color; 
+attribute vec3 aRotation; 
+attribute float aScale; 
 
-// varyings
-varying vec3 vColor;  
+varying vec2 vUv;
+
 
 void main()
 {
@@ -14,11 +16,12 @@ void main()
     vec4 projectedPosition = projectionMatrix * viewPosition;
     gl_Position = projectedPosition;
 
+
     // Size
-    gl_PointSize = uSize; 
+    gl_PointSize = aScale * uSize;
     gl_PointSize *= (1.0 / - viewPosition.z);
 
-    // varyings
-    vec3 vColor = color; 
+    // Varying
+    vUv = uv; 
 
 }

@@ -13,6 +13,7 @@
     "vite-plugin-restart": "^0.4.1"
   },
   "dependencies": {
+    "@pmndrs/vanilla": "^1.20.2",
     "@three.ez/instanced-mesh": "^0.3.0-alpha.10",
     "gsap": "^3.12.7",
     "lil-gui": "^0.19.2",

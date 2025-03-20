@@ -8,7 +8,8 @@ export default {
     server:
     {
         host: true, // Open to local network and display URL
-        open: !('SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env) // Open if it's not a CodeSandbox
+        open: !('SANDBOX_URL' in process.env || 'CODESANDBOX_HOST' in process.env), // Open if it's not a CodeSandbox
+        force: true, // Force dependencies to re-bundle
     },
     build:
     {
@@ -20,5 +21,9 @@ export default {
     [
         restart({ restart: [ '../static/**', ] }), // Restart server on static file change
         glsl() // Handle shader files
-    ]
+    ],
+    // Disable caching
+    optimizeDeps: {
+        force: true // Force dependencies optimization on every serve
+    }
 }

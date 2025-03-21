@@ -7,6 +7,7 @@ import GUI from 'lil-gui'
 import spritesVertexShader from './shaders/sprites/vertex.glsl'
 import spritesFragmentShader from './shaders/sprites/fragment.glsl'
 import Spice from './spice.js'
+import mixedSpices from './mixedSpices.js'
 import { MeshTransmissionMaterial } from '@pmndrs/vanilla'
 
 /**
@@ -577,6 +578,14 @@ function recalculateTop() {
         
         }
     });
+}
+
+function mixSpices()
+{
+    jar.content.mix = new mixedSpices(jar, jar.content.spices)
+
+    jar.content.spices = null;
+    mixedSpices.mix(jar.content);
 }
 
 /**

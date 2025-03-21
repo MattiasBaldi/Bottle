@@ -11,6 +11,7 @@ export default class Spice {
         this.points = null; 
 
         // Starting position
+        this.count = null; 
         this.startY = null; 
         this.endY = null;
     }

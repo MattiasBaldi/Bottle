@@ -10,6 +10,7 @@ import Spice from './spice.js'
 import mixedSpices from './mixedSpices.js'
 import { MeshTransmissionMaterial } from '@pmndrs/vanilla'
 
+
 /**
  * Base
  */
@@ -60,7 +61,6 @@ camera.position.y = 0
 camera.position.z = 4
 scene.add(camera)
 
-
 // Controls
 const controls = new OrbitControls(camera, canvas)
 const enabled = true; // or true, depending on your requirement
@@ -70,7 +70,6 @@ controls.maxDistance = enabled ? 4 : Infinity;
 controls.enablePan = enabled ? false : true;
 controls.maxPolarAngle = enabled ? Math.PI / 2 : Math.PI;
 controls.minPolarAngle = enabled ? Math.PI / 2 : 0;
-
 
 // const controlsFolder = debug.addFolder('Controls');
 // const controlsParams = { enableControls: false };
@@ -222,7 +221,6 @@ glassMaterial = new MeshTransmissionMaterial({
     color: new THREE.Color(0xffffff), // Added color
     buffer: renderTarget.texture, // This is the critical missing piece
 });
-
 
 // Geometry
 jar = bottle.scene.children[0]
@@ -515,7 +513,7 @@ jar.content.spices = {}
  */
 
 function addSpice(spiceName) {
-    const spice = new Spice(spices[spiceName]);
+    const spice = new Spice(jar, spices[spiceName]);
     jar.content.spices[spiceName] = spice;
     jar.content.spices[spiceName].isTop = null; 
 }
@@ -546,7 +544,7 @@ function calculatePoints(spice, startPercentage, endPercentage)
     
         spice.startPercentage = startPercentage; // Y%
         spice.endPercentage = endPercentage; // Y%
-        spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);  
+        spice.points = spice.create(spice.startPercentage, spice.endPercentage);  
         group.add(spice.points);
 
 
@@ -560,7 +558,7 @@ function recalculateTop() {
             group.remove(spice.points);
             spice.points.geometry.dispose();
             spice.points.material.dispose();
-            spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage);
+            spice.points = spice.create(spice.startPercentage, spice.endPercentage);
             group.add(spice.points);
             spice.isTop = false; 
         }
@@ -573,7 +571,7 @@ function recalculateTop() {
             group.remove(spice.points);
             spice.points.geometry.dispose();
             spice.points.material.dispose();
-            spice.points = spice.create(jar, spice.startPercentage, spice.endPercentage, true); // setting to true to include the top
+            spice.points = spice.create(spice.startPercentage, spice.endPercentage, true); // setting to true to include the top
             group.add(spice.points);
         
         }
@@ -583,9 +581,18 @@ function recalculateTop() {
 function mixSpices()
 {
     jar.content.mix = new mixedSpices(jar, jar.content.spices)
+    const mix = jar.content.mix.mix();
+    group.add(mix)
 
-    jar.content.spices = null;
-    mixedSpices.mix(jar.content);
+    // Clear other spices
+    for(const key in jar.content.spices)
+        {
+            const spice = jar.content.spices[key]
+            spice.points.geometry.dispose()
+            spice.points.material.dispose()
+            group.remove(spice.points)
+        }
+        jar.content.spices = {};
 }
 
 /**
@@ -596,66 +603,60 @@ function mixSpices()
 const spicesFolder = debug.addFolder('Spices')
 const spiceOptions = Object.keys(spices);
 const spiceParams = { selectedSpice: spiceOptions[0] };
-let spicesInJar = 0; 
+let spicesInJar = 0;
+const panel = {}
 
 // dropdown component
-function createSpiceDropdown() {
+const createSpiceDropdown = () => {
     const spiceFolder = spicesFolder.addFolder(`Spice ${Object.keys(jar.content.spices).length + 1}`);
     spiceParams.selectedSpice = ''; // Set initial name to nothing
 
-     // add dropdown
+    // add dropdown
     const spicePanel = {};
     let currentSpice = null; 
     
     spiceFolder.add(spiceParams, 'selectedSpice', spiceOptions).name('Select Spice').onChange((spiceName) => {
-        
-
         // clear everything
-        if(currentSpice)
-        {
-            removeSpice(currentSpice)
+        if(currentSpice) {
+            removeSpice(currentSpice);
         }
         
         if (Object.keys(spicePanel).length > 0) {
             Object.keys(spicePanel).forEach((panel) => {
-                panel.destroy()
-            })
+                panel.destroy();
+            });
         }
     
         // add spice
         addSpice(spiceName);
         const spice = jar.content.spices[spiceName];
-        currentSpice = spiceName
+        currentSpice = spiceName;
         spice.startPercentage = 0; 
         spice.endPercentage = 0;
-        console.log('jar content', jar.content); 
         
         /*
         SLIDERS
         */
     
         // start
-        spicePanel.start = spiceFolder.add(spice, 'startPercentage').min(0).max(100).onChange((value) => 
-        {
+        spicePanel.start = spiceFolder.add(spice, 'startPercentage').min(0).max(100).onChange((value) => {
             calculatePoints(spice, value, spice.endPercentage); 
             console.log('jar content', jar.content); 
         });
     
         // end
-        spicePanel.end = spiceFolder.add(spice, 'endPercentage').min(0).max(100).onChange((value) => 
-        {
+        spicePanel.end = spiceFolder.add(spice, 'endPercentage').min(0).max(100).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, value); 
             console.log('jar content', jar.content); 
         });
 
-        const materialFolder = spiceFolder.addFolder('Material tweaks')
+        const materialFolder = spiceFolder.addFolder('Material tweaks');
 
         // count
-        spicePanel.density = materialFolder.add(spice.params, 'density').min(0).max(spice.params.type === 'sprite' ? 2500 : 500).onChange(() => 
-        {
+        spicePanel.density = materialFolder.add(spice.params, 'density').min(0).max(spice.params.type === 'sprite' ? 2500 : 500).onChange(() => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
-        }).name('Density (particles per %)')
+        }).name('Density (particles per %)');
 
         // selfCollisionDistance
         spicePanel.selfCollisionDistance = materialFolder.add(spice.params, 'selfCollisionDistance').min(0).max(1).step(0.01).onChange((value) => {
@@ -663,18 +664,14 @@ function createSpiceDropdown() {
             console.log('jar content', jar.content);
         });
 
-
         // size
-        spicePanel.size = materialFolder.add(spice.params, 'size').min(0).max(1).onChange((value) => 
-        {
+        spicePanel.size = materialFolder.add(spice.params, 'size').min(0).max(1).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
-            
         }); 
 
         // Update shader size uniform if using shader material
-        spicePanel.sizeRandomize = materialFolder.add(spice.params, 'sizeRandomize').min(0).max(1).step(0.01).onChange((value) => 
-        {
+        spicePanel.sizeRandomize = materialFolder.add(spice.params, 'sizeRandomize').min(0).max(1).step(0.01).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
             
@@ -685,68 +682,110 @@ function createSpiceDropdown() {
         });
 
         // rotation
-        spicePanel.rotation = materialFolder.add(spice.params.rotation, 'x').min(0).max(Math.PI).step(0.01).onChange((value) => 
-        {
+        spicePanel.rotationX = materialFolder.add(spice.params.rotation, 'x').min(0).max(Math.PI).step(0.01).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
         }).name('Rotation X');
-        spicePanel.rotation = materialFolder.add(spice.params.rotation, 'y').min(0).max(Math.PI).step(0.01).onChange((value) => 
-        {
+        spicePanel.rotationY = materialFolder.add(spice.params.rotation, 'y').min(0).max(Math.PI).step(0.01).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
         }).name('Rotation Y');
-        spicePanel.rotation = materialFolder.add(spice.params.rotation, 'z').min(0).max(Math.PI).step(0.01).onChange((value) => 
-        {
+        spicePanel.rotationZ = materialFolder.add(spice.params.rotation, 'z').min(0).max(Math.PI).step(0.01).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
         }).name('Rotation Z');
 
         // rotationRandomize
-        spicePanel.rotationRandomize = materialFolder.add(spice.params, 'rotationRandomize').min(0).max(1).step(0.01).onChange((value) => 
-        {
+        spicePanel.rotationRandomize = materialFolder.add(spice.params, 'rotationRandomize').min(0).max(1).step(0.01).onChange((value) => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
         });
 
-
         // self destruct button
         spicePanel.removeButton = spiceFolder.add({ remove: () => {
             spiceFolder.destroy();
-            removeSpice(spiceName)
+            removeSpice(spiceName);
             console.log('jar content', jar.content); 
             spicesInJar -= 1; 
         }}, 'remove').name('Remove');
     });
-}
+    return spiceFolder;
+};
 
 // add button
-spicesFolder.add({ addSpice: () => {
-    if (spicesInJar < 7) {
-        createSpiceDropdown();
-        console.log('jar content', jar.content); 
-        spicesInJar += 1; 
-    } else {
-        
-    }
-}}, 'addSpice').name('Add Spice');
-
+const createAddButton = () => {
+    const button = spicesFolder.add({ addSpice: () => {
+        if (spicesInJar < 7) {
+            createSpiceDropdown();
+            console.log('jar content', jar.content); 
+            spicesInJar += 1; 
+        } else {
+            console.log('Maximum number of spices reached');
+        }
+    }}, 'addSpice').name('Add Spice');
+    return button;
+};
 
 // optimize button
-spicesFolder.add({ optimize: () => {
-    if (spicesInJar > 0) {
-        // Give the jar a spin using GSAP
-        const spinDuration = 1; // duration in seconds
-        const spinAngle = Math.PI * 2; // 360 degrees
+const createOptimizeButton = () => {
+    const button = spicesFolder.add({ optimize: () => {
+        if (spicesInJar > 0) {
+            // Give the jar a spin using GSAP
+            const spinDuration = 1; // duration in seconds
+            const spinAngle = Math.PI * 2; // 360 degrees
+            
+            gsap.to(group.rotation, {
+                y: group.rotation.y + spinAngle, // Rotate around Y axis (vertical)
+                duration: spinDuration,
+                ease: "power1.inOut",
+                onComplete: () => {
+                    // Mix spices after animation completes
+                    mixSpices();
+                    
+                    if(!panel.resetButton)
+                        panel.resetButton = createResetButton();
+                    panel.addButton = null; 
+                }
+            });
+        } else {
+            console.log('No spices in the jar to optimize');
+        }
+    }}, 'optimize').name('Optimize');
 
-        gsap.to(group.rotation, {
-            y: group.rotation.y + spinAngle,
-            duration: spinDuration,
-            ease: "power1.inOut"
-        });
-    } else {
-        console.log('No spices in the jar to optimize');
-    }
-}}, 'optimize').name('Optimize');
+    return button;
+};
+
+// reset button
+const createResetButton = () => {
+    // Destroy all existing buttons in spice.folder
+    spicesFolder.children.forEach(child => child.destroy());
+
+    // Add a reset button that resets the entire experience
+    const button = spicesFolder.add({ reset: () => {
+        // Remove all spices
+        spicesInJar = 0;
+
+        // Clear the mix if it exists
+        if (jar.content.mix) {
+            jar.content.mix.points.children.forEach(child => {
+                child.geometry.dispose();
+                child.material.dispose();
+            });
+            group.remove(jar.content.mix);
+            jar.content.mix = null;
+        }
+
+        // Recreate the spice dropdown
+        if(!panel.addButton)
+            panel.addButton = createAddButton();
+    }}, 'reset').name('Reset');
+    return button;
+};
+
+// init panel
+panel.addButton = createAddButton();
+panel.optimizeButton = createOptimizeButton(); 
+
 }
 
 // load models and begin experience when ready

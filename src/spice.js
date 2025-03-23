@@ -3,11 +3,11 @@ import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.j
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
 
 export default class Spice {
-    constructor(params) 
+    constructor(jar, params) 
     {
         // Parameters
+        this.jar = jar
         this.params = params;
-        this.type = this.params.type; // instances or points
         this.points = null; 
 
         // Starting position
@@ -16,8 +16,8 @@ export default class Spice {
         this.endY = null;
     }
 
-    create(mesh, start, end, top) {
-        const { scales, positions, rotations, sampledCount } = this.#samplePoints(mesh, start, end, this.params.density, top);
+    create(start, end, top) {
+        const { scales, positions, rotations, sampledCount } = this.#samplePoints(start, end, this.params.density, top);
         if (this.params.type === 'sprite') {
             return this.#createPoints(scales, positions, rotations, sampledCount);
         } else if (this.params.type === 'instance') {
@@ -78,18 +78,19 @@ export default class Spice {
     }
 
     // Surface Sampler
-    #samplePoints(mesh, startPercentage, endPercentage, density, top = false) {
+    #samplePoints(startPercentage, endPercentage, density, top = false) {
 
-        if(mesh.geometry.boundingBox) {
-        const height = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
-        this.startY = mesh.geometry.boundingBox.min.y + height * startPercentage * 0.01;
-        this.endY = mesh.geometry.boundingBox.min.y + height * endPercentage * 0.01;
+
+        if(this.jar.geometry.boundingBox) {
+        const height = this.jar.geometry.boundingBox.max.y - this.jar.geometry.boundingBox.min.y;
+        this.startY = this.jar.geometry.boundingBox.min.y + height * startPercentage * 0.01;
+        this.endY = this.jar.geometry.boundingBox.min.y + height * endPercentage * 0.01;
         }
 
         // * endPercentage
         // For consistent spatial density regardless of fill amount
         const count = Math.floor(density * (endPercentage - startPercentage))
-        const sampler = new MeshSurfaceSampler(mesh).build();
+        const sampler = new MeshSurfaceSampler(this.jar).build();
         const positions = new Float32Array(count * 3);
         const rotations = new Float32Array(count * 3);
         const normals = new Float32Array(count * 3);
@@ -120,7 +121,7 @@ export default class Spice {
             }
 
             // Skip local bottom & maxTop + minTop
-            if (position.y === this.startY || position.y <= mesh.geometry.boundingBox.min.y || position.y >= mesh.geometry.boundingBox.max.y) {
+            if (position.y === this.startY || position.y <= this.jar.geometry.boundingBox.min.y || position.y >= this.jar.geometry.boundingBox.max.y) {
                 continue;
             }
 
@@ -148,7 +149,7 @@ export default class Spice {
             }
 
               // push inwards depending on size
-            if(this.type === 'instance')
+            if(this.params.type === 'instance')
             {
                 position.x *= 1 - this.params.size * 0.6;  // ensure positioned inside
                 position.z *= 1 - this.params.size * 0.6; // ensure positioned inside
@@ -160,9 +161,7 @@ export default class Spice {
                 position.y *= 1 - this.params.size * 0.05; // ensure positioned inside
             }
           
-         
-            
-
+        
             // add self collision on instance types
         //     if(this.type === 'instance')
         //     {

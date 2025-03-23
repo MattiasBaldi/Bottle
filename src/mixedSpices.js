@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { MeshSurfaceSampler } from 'three/examples/jsm/math/MeshSurfaceSampler.js';
 import { InstancedMesh2 } from '@three.ez/instanced-mesh'
-import Spice from './spice.js'
 
 export default class mixedSpices {
     constructor(jar, spices) 
@@ -9,82 +8,55 @@ export default class mixedSpices {
         // Parameters
         this.jar = jar 
         this.spices = spices
-        this.params = params;
-        this.type = this.params.type; // instances or points
-        this.points = null; 
-
+        this.totalCount = 0;  // Initialize to 0, not null
+        this.points = new THREE.Group();
+    
+        // call init
+        this.findSamples()
+        this.#samplePoints()
     }
 
     mix()
     {
-        // run one samplePoints
-        let percentageMissing = null; 
-        let finalCount = null;
-
-        // finding the total samplepoints
-        for (const spice in this.spices)
-        {
-            if(spice.isTop)
-            {
-                percentageMissing = 100 - spice.endPercentage
+        // create one for each using the mixed ones
+        for(const key in this.spices) {
+            const spice = this.spices[key];
+            const spiceObject = this.create(spice);
+            if (spiceObject) {
+                this.points.add(spiceObject);
             }
-
-            // this spice' total Percentage
-            const spicePercentageOfBottle = spice.startPercentage - spice.endPercentage * 0.01
-            spice.count += Math.floor(density * (percentageMissing * spicePercentageOfBottle))
-            finalCount += spice.count
         }
-
-        // sample points
-        this.#samplePoints(finalCount)
-
-        // create each spice
-        for(const spice in this.spices)
-        {
-            this.mixedSpice += this.create(spice)
-        }
-
-        return this.mixedSpice; 
- 
+    
+        return this.points;
     }
 
     create(spice) {
-
         if (spice.params.type === 'sprite') {
             return this.#createPoints(spice);
         } 
-        
         else if (spice.params.type === 'instance') {
             return this.#createInstancedMesh(spice);
         }
+        return null;
     }
 
     // Points with sprite textures
     #createPoints(spice) {
-        let points = null; 
         const pointsGeometry = new THREE.BufferGeometry();
 
-        // Position
-        const adjustedPositions = spice.positions.subarray(0, positions.length * 3);
-        pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
+        // Position - fix the subarray calculation
+        pointsGeometry.setAttribute('position', new THREE.BufferAttribute(spice.positions, 3));
 
-        // // Rotation
-        // const adjustedRotations = rotations.subarray(0, positions.length * 3);
-        // pointsGeometry.setAttribute('aRotation', new THREE.BufferAttribute(adjustedRotations, 3));
-
-        // // Scale
-        // const adjustedScales = scales.subarray(0, positions.length);
-        // pointsGeometry.setAttribute('aScale', new THREE.BufferAttribute(adjustedScales, 1));
-
-        return points = new THREE.Points(pointsGeometry, spice.params.material);
+        return new THREE.Points(pointsGeometry, spice.params.material);
     }
 
     // Instances
     #createInstancedMesh(spice) {
-        
-        const instancedMesh = new InstancedMesh2(spice.params.mesh.geometry, spice.params.mesh.material, { capacity: sampledCount });
+        // Divide by 3 because positions is a flat array of x,y,z components
+        const count = spice.positions.length / 3;
+        const instancedMesh = new InstancedMesh2(spice.params.mesh.geometry, spice.params.mesh.material, count);
 
-        instancedMesh.addInstances(spice.positions.length, (obj, index) => {
+        instancedMesh.addInstances(count, (obj, index) => {
             const i3 = index * 3;
 
             // Position
@@ -117,20 +89,51 @@ export default class mixedSpices {
         return instancedMesh;
     }
 
-    // Surface Sampler
-    #samplePoints(count) {
+    findSamples()
+    {
+        // Initialize with a default value
+        let percentageMissing = 0;
+        
+        // finding the total samplepoints
+        for (const key in this.spices) {
+            const spice = this.spices[key]; // Get the actual object
+            
+            if(spice.isTop) {
+                percentageMissing = 100 - spice.endPercentage;
+            }
+            
+            // Initialize spice.count if it doesn't exist
+            if (spice.count === undefined) {
+                spice.count = 0;
+            }
+            
+            // Calculate this spice's total percentage
+            const spicePercentageOfBottle = ((spice.endPercentage - spice.startPercentage)/100) * 100;
+            
+            // Calculate and add the particles
+            const additionalCount = Math.floor(spice.params.density * (percentageMissing * spicePercentageOfBottle/100));
+            spice.count += additionalCount;
+            
+            this.totalCount += spice.count;
+        }
+    }
 
+    // Surface Sampler
+    #samplePoints() {
         // For consistent spatial density regardless of fill amount
-        const count = count
-        const sampler = new MeshSurfaceSampler(jar).build();
-        const positions = new Float32Array(count * 3);
+        const sampler = new MeshSurfaceSampler(this.jar).build();
+        const positions = new Float32Array(this.totalCount * 3);
         const position = new THREE.Vector3();
-        const normals = new Float32Array(count * 3);
         const normal = new THREE.Vector3();
 
+        // Ensure we get exactly the number of points we need
         let sampledCount = 0;
-        for (let i = 0; i < count; i++) {
+        let attemptCount = 0;
+        const maxAttempts = this.totalCount * 10; // Avoid infinite loop
+
+        while (sampledCount < this.totalCount && attemptCount < maxAttempts) {
             sampler.sample(position, normal);
+            attemptCount++;
 
             // Check if the point is inside or outside using normals
             const dot = normal.dot(position.clone().normalize());
@@ -138,18 +141,42 @@ export default class mixedSpices {
                 continue; // Skip points that are outside
             }
 
-            position.x *= 1 - 0.1;  // ensure positioned inside
-            position.z *= 1 - 0.1; // ensure positioned inside
-            position.y *= 1 - 0.05; // ensure positioned inside
+            position.x *= 0.9;  // ensure positioned inside (1 - 0.1)
+            position.z *= 0.9; // ensure positioned inside
+            // position.y *= 0.95; // ensure positioned inside
           
             // Set
             positions.set([position.x, position.y, position.z], sampledCount * 3);
             sampledCount++;
         }
+        
+        if (sampledCount < this.totalCount) {
+            console.warn(`Only found ${sampledCount} valid points out of ${this.totalCount} requested`);
+        }
 
-        for (const spice in this.spices)
-        {
-            spice.positions = positions[spice.count]
+        // Distribute particles from bottom to top (forward order)
+        let startIndex = 0;
+        for (const key in this.spices) {
+            const spice = this.spices[key];
+            const endIndex = startIndex + spice.count;
+            
+            // Create a slice of the positions array for this spice
+            spice.positions = new Float32Array(spice.count * 3);
+            
+            // Copy only the needed positions for this spice
+            for (let i = 0; i < spice.count; i++) {
+                const sourceIndex = (startIndex + i) * 3;
+                const targetIndex = i * 3;
+                
+                // Only copy if we have enough sampled points
+                if (sourceIndex + 2 < sampledCount * 3) {
+                    spice.positions[targetIndex] = positions[sourceIndex];
+                    spice.positions[targetIndex + 1] = positions[sourceIndex + 1];
+                    spice.positions[targetIndex + 2] = positions[sourceIndex + 2];
+                }
+            }
+            
+            startIndex = endIndex;
         }
     }
 }

@@ -28,19 +28,19 @@ const scene = new THREE.Scene()
  * Environment
  */
 const environmentloader = new RGBELoader()
-environmentloader.load('./environment/HDR/restaurant_1k.hdr', (texture) => {
+environmentloader.load('./environment/HDR/studi_1k.hdr', (texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping;
     scene.environment = texture;
     scene.background = new THREE.Color('#ffffff')
 })
 
 // Add a toggle for the background in the debug GUI
-// const backgroundFolder = debug.addFolder('Background');
-// backgroundFolder.close()
-// const backgroundParams = { background: false };
-// backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').onChange((value) => {
-//     scene.background = value ? scene.environment : new THREE.Color('#ffffff'); 
-// });
+const backgroundFolder = debug.addFolder('Background');
+backgroundFolder.close()
+const backgroundParams = { background: false };
+backgroundFolder.add(backgroundParams, 'background').name('Toggle Background').onChange((value) => {
+    scene.background = value ? scene.environment : new THREE.Color('#ffffff'); 
+});
 
 /**
  * Sizes
@@ -71,16 +71,16 @@ controls.enablePan = enabled ? false : true;
 controls.maxPolarAngle = enabled ? Math.PI / 2 : Math.PI;
 controls.minPolarAngle = enabled ? Math.PI / 2 : 0;
 
-// const controlsFolder = debug.addFolder('Controls');
-// const controlsParams = { enableControls: false };
-// controlsFolder.add(controlsParams, 'enableControls').name('Disable Controls').onChange((enabled) => {
-//     controls.enableDamping = enabled;
-//     controls.minDistance = enabled ? 3.5 : 0;
-//     controls.maxDistance = enabled ? 4 : Infinity;
-//     controls.enablePan = enabled ? false : true;
-//     controls.maxPolarAngle = enabled ? Math.PI / 2 : Math.PI;
-//     controls.minPolarAngle = enabled ? Math.PI / 2 : 0;
-// });
+const controlsFolder = debug.addFolder('Controls');
+const controlsParams = { enableControls: true };
+controlsFolder.add(controlsParams, 'enableControls').name('Disable Controls').onChange((enabled) => {
+    controls.enableDamping = enabled;
+    controls.minDistance = enabled ? 3.5 : 0;
+    controls.maxDistance = enabled ? 4 : Infinity;
+    controls.enablePan = enabled ? false : true;
+    controls.maxPolarAngle = enabled ? Math.PI / 2 : Math.PI;
+    controls.minPolarAngle = enabled ? Math.PI / 2 : 0;
+});
 
 /**
  * Renderer
@@ -143,6 +143,8 @@ const sprites =
         two: textureLoader.load('./textures/sprites/chili_flake_two.png'), 
         three: textureLoader.load('./textures/sprites/chili_flake_three.png'), 
     }, 
+
+    chiliPowder: textureLoader.load('./textures/sprites/chili_powder.png'),
 
     pepperCorn: textureLoader.load('./textures/sprites/pepperCorn.png'), 
     sugarCube: textureLoader.load('./textures/sprites/sugarCube.png'), 
@@ -296,9 +298,8 @@ bottleFolder.add(glassMaterial, 'ior').min(1).max(2.33).step(0.01).name('IOR')
  */
 const createShaderMaterial = 
 ({
-    spriteTextureOne = null, spritePercentageOne = 0,
-    spriteTextureTwo = null, spritePercentageTwo = 0,
-    spriteTextureThree = null, spritePercentageThree = 0
+    uSize = null, 
+    uSprite = null, 
 }) => 
 {
 
@@ -316,12 +317,10 @@ const shader = new THREE.ShaderMaterial
         uBrightness: new THREE.Uniform(1.0),
 
         // Textures || Sprites
-        uSpriteOne: new THREE.Uniform(spriteTextureOne),
-        uSpriteOnePercentage: new THREE.Uniform(spritePercentageOne),
-        uSpriteTwo: new THREE.Uniform(spriteTextureTwo),
-        uSpriteTwoPercentage: new THREE.Uniform(spritePercentageTwo),
-        uSpriteThree: new THREE.Uniform(spriteTextureThree),
-        uSpriteThreePercentage: new THREE.Uniform(spritePercentageThree),
+        uSprite: new THREE.Uniform(uSprite),
+        // uNormal: new THREE.Uniform(uSprite),
+        // uDisplacement: new THREE.Uniform(uSprite),
+        // uRoughness: new THREE.Uniform(uSprite),
 
         // Details
         uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
@@ -329,10 +328,14 @@ const shader = new THREE.ShaderMaterial
         uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
         uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
     },
+
+
     transparent: true,
+    alphaTest: 0.9, 
+    depthTest: true, 
     depthWrite: false,
     vertexColors: true,
-    // blending: THREE.NormalBlending,
+    blending: THREE.NormalBlending,
 })
 
 return shader
@@ -389,21 +392,21 @@ const spices =
 
     // },
 
-    INSTANCE_peppercorn:
-    {
-        type: 'instance', // Determine what is used
-        density: 100,
-        mesh: spiceModels.scene.getObjectByName('pepper'), 
+    // INSTANCE_peppercorn:
+    // {
+    //     type: 'instance', // Determine what is used
+    //     density: 100,
+    //     mesh: spiceModels.scene.getObjectByName('pepper'), 
 
-        containerCollisisonDistance: 0.1, 
-        selfCollisionDistance: 0.2, 
+    //     containerCollisisonDistance: 0.1, 
+    //     selfCollisionDistance: 0.2, 
         
-        size: 0.1,
-        sizeRandomize: 0.01, 
+    //     size: 0.1,
+    //     sizeRandomize: 0.01, 
 
-        rotation: new THREE.Vector3(1, 1, 1),
-        rotationRandomize: 0.7,
-    },
+    //     rotation: new THREE.Vector3(1, 1, 1),
+    //     rotationRandomize: 0.7,
+    // },
 
     // INSTANCE_seeds:
     // {
@@ -421,39 +424,39 @@ const spices =
 
     // },
 
-    INSTANCE_chili_flakes:
-    {
-        type: 'instance', // Determine what is used
-        density: 250,
-        mesh: spiceModels.scene.getObjectByName('chili'), 
+    // INSTANCE_chili_flakes:
+    // {
+    //     type: 'instance', // Determine what is used
+    //     density: 250,
+    //     mesh: spiceModels.scene.getObjectByName('chili'), 
 
-        selfCollisionDistance: 0.01, 
+    //     selfCollisionDistance: 0.01, 
         
-        size: 0.125,
-        sizeRandomize: 0.125, 
+    //     size: 0.125,
+    //     sizeRandomize: 0.125, 
 
-        rotation: new THREE.Vector3(1, 1, 2),
-        rotationRandomize: 1.0,
-    },
+    //     rotation: new THREE.Vector3(1, 1, 2),
+    //     rotationRandomize: 1.0,
+    // },
 
-    INSTANCE_powder:
-    {
-        type: 'instance', // Determine what is used
-        density: 150,
-        mesh: spiceModels.scene.getObjectByName('powder'), 
+    // INSTANCE_powder:
+    // {
+    //     type: 'instance', // Determine what is used
+    //     density: 150,
+    //     mesh: spiceModels.scene.getObjectByName('powder'), 
 
-        selfCollisionDistance: 0.2, 
+    //     selfCollisionDistance: 0.2, 
         
-        size: 0.1,
-        sizeRandomize: 0.01, 
+    //     size: 0.1,
+    //     sizeRandomize: 0.01, 
 
-        rotation: new THREE.Vector3(1, 1, 1),
-        rotationRandomize: 0.7,
+    //     rotation: new THREE.Vector3(1, 1, 1),
+    //     rotationRandomize: 0.7,
 
-    },
+    // },
 
     // Sprites
-    POINTS_chili_powder_withSprites:
+    POINTS_chiliPowder_CustomShader:
     {
         type: 'sprite', // Determine what is used
         density: 1000,
@@ -476,7 +479,26 @@ const spices =
         })
     },
 
-    POINTS_powder_withSprites:
+    POINTS_powder_customShader:
+    {
+        type: 'sprite', // Determine what is used
+        density: 1000,
+
+        selfCollisionDistance: 0.2, 
+        
+        size: 1,
+        sizeRandomize: 0.01, 
+
+        rotation: new THREE.Vector3(1, 1, 1),
+        rotationRandomize: 0.7,
+
+        material: createShaderMaterial({
+            spriteTextureOne: sprites.powder,
+            spritePercentageOne: 1.0,
+        })
+    },
+
+    POINTS_powder_PointsMaterial:
     {
         type: 'sprite', // Determine what is used
         density: 420,
@@ -493,6 +515,30 @@ const spices =
         ({
             sizeAttenuation: true,
             map: sprites.powder,
+            size: 0.4,
+            transparent: true,
+            // depthWrite: false,
+            alphaTest: 0.9, 
+        })
+    },
+
+    POINTS_chiliPowder_PointsMaterial:
+    {
+        type: 'sprite', // Determine what is used
+        density: 420,
+
+        selfCollisionDistance: 0.2, 
+
+        size: 1.5,
+        sizeRandomize: 0.7,
+
+        rotation: new THREE.Vector3(1, 1, 1),
+        rotationRandomize: 0.7,
+
+        material: new THREE.PointsMaterial
+        ({
+            sizeAttenuation: true,
+            map: sprites.chiliPowder,
             size: 0.4,
             transparent: true,
             // depthWrite: false,
@@ -529,7 +575,7 @@ function removeSpice(spiceName) {
     }
 
     delete jar.content.spices[spiceName];
-    // sampleTop()    
+    recalculateTop();
 }
 
 function calculatePoints(spice, startPercentage, endPercentage)
@@ -700,6 +746,44 @@ const createSpiceDropdown = () => {
             calculatePoints(spice, spice.startPercentage, spice.endPercentage); 
             console.log('jar content', jar.content); 
         });
+
+        if (spice.params.type === 'sprite' && spice.params.material) {
+            spicePanel.transparent = materialFolder.add(spice.params.material, 'transparent').name('Transparent').onChange((value) => {
+            spice.params.material.transparent = value;
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+
+            spicePanel.alphaTest = materialFolder.add(spice.params.material, 'alphaTest').min(0).max(1).step(0.01).name('Alpha Test').onChange((value) => {
+            spice.params.material.alphaTest = value;
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+
+            spicePanel.depthTest = materialFolder.add(spice.params.material, 'depthTest').name('Depth Test').onChange((value) => {
+            spice.params.material.depthTest = value;
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+
+            spicePanel.vertexColors = materialFolder.add(spice.params.material, 'vertexColors').name('Vertex Colors').onChange((value) => {
+            spice.params.material.vertexColors = value;
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+
+            spicePanel.blending = materialFolder.add(spice.params.material, 'blending', {
+            NoBlending: THREE.NoBlending,
+            NormalBlending: THREE.NormalBlending,
+            AdditiveBlending: THREE.AdditiveBlending,
+            SubtractiveBlending: THREE.SubtractiveBlending,
+            MultiplyBlending: THREE.MultiplyBlending
+            }).name('Blending').onChange((value) => {
+            spice.params.material.blending = parseInt(value);
+            calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+
+            spicePanel.depthWrite = materialFolder.add(spice.params.material, 'depthWrite').name('Depth Write').onChange((value) => {
+                spice.params.material.depthWrite = value;
+                calculatePoints(spice, spice.startPercentage, spice.endPercentage);
+            });
+        }
 
         // self destruct button
         spicePanel.removeButton = spiceFolder.add({ remove: () => {

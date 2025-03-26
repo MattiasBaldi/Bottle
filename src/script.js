@@ -9,7 +9,7 @@ import spritesFragmentShader from './shaders/sprites/fragment.glsl'
 import Spice from './spice.js'
 import mixedSpices from './mixedSpices.js'
 import { MeshTransmissionMaterial } from '@pmndrs/vanilla'
-
+import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 
 /**
  * Base
@@ -88,7 +88,7 @@ controlsFolder.add(controlsParams, 'enableControls').name('Disable Controls').on
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: false,
-    alpha: true // Add alpha: true for proper transparency handling
+    // alpha: true // Add alpha: true for proper transparency handling
 })
 
 renderer.setSize(sizes.width, sizes.height)
@@ -224,7 +224,7 @@ glassMaterial = new MeshTransmissionMaterial({
     buffer: renderTarget.texture, // This is the critical missing piece
 });
 
-// Geometry
+// Geometrys
 jar = bottle.scene.children[0]
 jar.geometry.computeBoundingBox();
 jar.name = 'jar'
@@ -343,119 +343,7 @@ return shader
 
 const spices = 
 {
-
-    // Instances 
-    // INSTANCE_basil:
-    // {
-    //     container: jar, 
-    //     type: 'instance', // Determine what is used
-    //     mesh: spiceModels.scene.getObjectByName('basil'), 
-    //     density: 10,
-
-    //     selfCollisionDistance: 0.2, 
-
-    //     size: 0.75,
-    //     sizeRandomize: 0.05, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 1.0,
-    // },
-
-    // INSTANCE_anise:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     mesh: spiceModels.scene.getObjectByName('star_anise'), 
-    //     density: 100,
-
-    //     selfCollisionDistance: 0.2, 
-
-    //     size: 0.8,
-    //     sizeRandomize: 0.05, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 0.7,
-    // },
-
-    // INSTANCE_cloves:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     mesh: spiceModels.scene.getObjectByName('cloves'), 
-    //     density: 800,
-
-    //     selfCollisionDistance: 0.2, 
-        
-    //     size: 0.5,
-    //     sizeRandomize: 0.05, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 0.7,
-
-    // },
-
-    // INSTANCE_peppercorn:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     density: 100,
-    //     mesh: spiceModels.scene.getObjectByName('pepper'), 
-
-    //     containerCollisisonDistance: 0.1, 
-    //     selfCollisionDistance: 0.2, 
-        
-    //     size: 0.1,
-    //     sizeRandomize: 0.01, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 0.7,
-    // },
-
-    // INSTANCE_seeds:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     density: 100,
-    //     mesh: spiceModels.scene.getObjectByName('seed'), 
-
-    //     selfCollisionDistance: 0.2, 
-        
-    //     size: 1,
-    //     sizeRandomize: 0.01, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 0.7,
-
-    // },
-
-    // INSTANCE_chili_flakes:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     density: 250,
-    //     mesh: spiceModels.scene.getObjectByName('chili'), 
-
-    //     selfCollisionDistance: 0.01, 
-        
-    //     size: 0.125,
-    //     sizeRandomize: 0.125, 
-
-    //     rotation: new THREE.Vector3(1, 1, 2),
-    //     rotationRandomize: 1.0,
-    // },
-
-    // INSTANCE_powder:
-    // {
-    //     type: 'instance', // Determine what is used
-    //     density: 150,
-    //     mesh: spiceModels.scene.getObjectByName('powder'), 
-
-    //     selfCollisionDistance: 0.2, 
-        
-    //     size: 0.1,
-    //     sizeRandomize: 0.01, 
-
-    //     rotation: new THREE.Vector3(1, 1, 1),
-    //     rotationRandomize: 0.7,
-
-    // },
-
-    // Sprites
+    
     POINTS_chiliPowder_CustomShader:
     {
         type: 'sprite', // Determine what is used
@@ -517,7 +405,7 @@ const spices =
             map: sprites.powder,
             size: 0.4,
             transparent: true,
-            // depthWrite: false,
+            depthWrite: false,
             alphaTest: 0.9, 
         })
     },
@@ -541,7 +429,7 @@ const spices =
             map: sprites.chiliPowder,
             size: 0.4,
             transparent: true,
-            // depthWrite: false,
+            depthWrite: false,
             alphaTest: 0.9, 
         })
     },
@@ -640,6 +528,61 @@ function mixSpices()
         }
         jar.content.spices = {};
 }
+
+const addLabel = (jar, color, text) =>
+{
+    const size = new THREE.Vector3(
+        jar.geometry.boundingBox.max.z - jar.geometry.boundingBox.min.x,
+        (jar.geometry.boundingBox.max.y - jar.geometry.boundingBox.min.y) * 0.25, // 2/10 of height (y)
+        jar.geometry.boundingBox.max.z - jar.geometry.boundingBox.min.z // Full depth (z)
+    );
+
+    const position = new THREE.Vector3(
+        0,
+        (jar.geometry.boundingBox.max.y + jar.geometry.boundingBox.min.y) / 2 - 0.25,
+        0
+    ); 
+
+    // Define the position for the decal at the center
+    const labelGeometry = new DecalGeometry(jar, position, new THREE.Quaternion(), size);
+    
+    const canvas = document.createElement('canvas');
+    const boundingBox = jar.geometry.boundingBox;
+    const width = boundingBox.max.x - boundingBox.min.x;
+    const height = (boundingBox.max.y - boundingBox.min.y) * 0.25; // 2/10 of height
+    const aspectRatio = width / height; // Calculate aspect ratio
+    const scaleFactor = 512; // Base scale factor for resolution
+    canvas.width = Math.ceil(scaleFactor * aspectRatio); // Adjust width based on aspect ratio
+    canvas.height = Math.ceil(scaleFactor); // Use scale factor for height
+    const context = canvas.getContext('2d');
+    context.fillStyle = 'white';
+    context.globalAlpha = 1.0; // Ensure full opacity
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = 'black';
+    context.font = `${Math.ceil(canvas.height * 0.1)}px helvetica`; // Scale font size proportionally
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+
+    // Draw the text
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+    const labelTexture = new THREE.CanvasTexture(canvas);
+    labelTexture.colorSpace = THREE.SRGBColorSpace; // Ensure proper color space
+    labelTexture.minFilter = THREE.LinearFilter; // Prevent mipmap issues
+    labelTexture.magFilter = THREE.LinearFilter;
+
+    const labelMaterial = new THREE.MeshStandardMaterial({
+        color: color,
+        map: labelTexture,
+        transparent: true, // Enable transparency
+        roughness: 0.1, 
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+    });
+
+    return new THREE.Mesh(labelGeometry, labelMaterial);
+};
 
 /**
  * Panel
@@ -814,6 +757,7 @@ const createAddButton = () => {
 const createOptimizeButton = () => {
     const button = spicesFolder.add({ optimize: () => {
         if (spicesInJar > 0) {
+
             // Give the jar a spin using GSAP
             const spinDuration = 1; // duration in seconds
             const spinAngle = Math.PI * 2; // 360 degrees
@@ -825,7 +769,25 @@ const createOptimizeButton = () => {
                 onComplete: () => {
                     // Mix spices after animation completes
                     mixSpices();
-                    
+                    jar.label = addLabel(jar, 'white', 'TEST'); 
+                    group.add(jar.label);
+
+                    debug.add(jar.label.material, 'opacity').min(0).max(1).step(0.01).name('Label Opacity').onChange(() => {
+                        jar.label.material.needsUpdate = true;
+                    });
+                    debug.add(jar.label.material, 'transparent').name('Label Transparent').onChange(() => {
+                        jar.label.material.needsUpdate = true;
+                    });
+                    debug.addColor(jar.label.material, 'color').name('Label Color').onChange(() => {
+                        jar.label.material.needsUpdate = true;
+                    });
+                    debug.add(jar.label.material, 'roughness').min(0).max(1).step(0.01).name('Label Roughness').onChange(() => {
+                        jar.label.material.needsUpdate = true;
+                    });
+                    debug.add(jar.label.material, 'metalness').min(0).max(1).step(0.01).name('Label Metalness').onChange(() => {
+                        jar.label.material.needsUpdate = true;
+                    });
+
                     if(!panel.resetButton)
                         panel.resetButton = createResetButton();
                     panel.addButton = null; 
@@ -855,6 +817,7 @@ const createResetButton = () => {
                 child.geometry.dispose();
                 child.material.dispose();
             });
+            group.remove(jar.label);
             group.remove(jar.content.mix);
             jar.content.mix = null;
         }

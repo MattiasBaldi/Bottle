@@ -1,61 +1,50 @@
-uniform sampler2D uSprite; 
+uniform sampler2D uMap;
+uniform vec3 diffuse;
+uniform float opacity;
+uniform float alphaTest;
 
 // Varying
 varying vec3 vNormal;
 varying vec3 vPosition;
-
-// Three.js includes
-#include <common>
-#include <logdepthbuf_pars_fragment>
-#include <clipping_planes_pars_fragment>
-#include <alphatest_pars_fragment>
-#include <alphahash_pars_fragment>
-#include <fog_pars_fragment>
+#ifdef USE_COLOR
+  varying vec3 vColor;
+#endif
 
 // Custom includes
 #include "../includes/ambientLight.glsl"
 #include "../includes/directionalLight.glsl"
 
-// DirectionalLight
 void main() {
-
-    // declare inits
+    // Declare inits
     vec3 viewDirection = vPosition - cameraPosition;
     vec3 light = vec3(0.0);  
-    vec4 diffuseColor = vec4(0.0); 
+    vec4 color = vec4(diffuse, opacity); 
 
-    // Sample all textures
-    vec4 sprite = texture(uSprite, gl_PointCoord);
-    diffuseColor = sprite; 
-
-    // Lights
+    // Sample texture
+    vec4 sprite = texture(uMap, gl_PointCoord);
+    
+    // Apply color and alpha
+    color *= sprite;
+    
+    // Apply vertex colors if enabled
+    // #ifdef USE_COLOR
+    //   color.rgb *= vColor;
+    // #endif
+    
+    // Alpha test - discard transparent pixels
+    if (color.a < alphaTest) discard;
+    
+    // Apply lighting
     light += ambientLight(
         vec3(1.0),      // Color
         0.7             // Intensity
     );
-    diffuseColor.rgb *= light;
-
-    // Includes
-	#include <clipping_planes_fragment>
-
-	vec3 outgoingLight = vec3( 0.0 );
-
-	#include <logdepthbuf_fragment>
-	#include <map_particle_fragment>
-	// #include <color_fragment>
-	#include <alphatest_fragment>
-	#include <alphahash_fragment>
-
-    // outgoingLight = diffuseColor.rgb;
-
-	#include <opaque_fragment>
-	#include <tonemapping_fragment>
-	// #include <colorspace_fragment>
-	#include <premultiplied_alpha_fragment>
-
-
-    gl_FragColor = diffuseColor;
-
-
+    color.rgb *= light;
+    
+    // Output final color with proper premultiplied alpha
+    gl_FragColor = color;
+    
+    #ifdef PREMULTIPLIED_ALPHA
+      gl_FragColor.rgb *= gl_FragColor.a;
+    #endif
 }
-

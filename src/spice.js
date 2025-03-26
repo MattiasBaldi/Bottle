@@ -17,30 +17,34 @@ export default class Spice {
     }
 
     create(start, end, top) {
-        const { scales, positions, rotations, sampledCount } = this.#samplePoints(start, end, this.params.density, top);
+        const { scales, positions, rotations, colors, sampledCount } = this.#samplePoints(start, end, this.params.density, top);
         if (this.params.type === 'sprite') {
-            return this.#createPoints(scales, positions, rotations, sampledCount);
+            return this.#createPoints(scales, positions, rotations, colors, sampledCount);
         } else if (this.params.type === 'instance') {
             return this.#createInstancedMesh(scales, positions, rotations, sampledCount);
         }
     }
 
     // Points with sprite textures
-    #createPoints(scales, positions, rotations, sampledCount) {
+    #createPoints(scales, positions, rotations, colors, sampledCount) {
         let points = null; 
         const pointsGeometry = new THREE.BufferGeometry();
+
+        // // Color
+        // const adjustedColors = colors.subarray(0, sampledCount);
+        // pointsGeometry.setAttribute('color', new THREE.BufferAttribute(adjustedColors, 1));
 
         // Position
         const adjustedPositions = positions.subarray(0, sampledCount * 3);
         pointsGeometry.setAttribute('position', new THREE.BufferAttribute(adjustedPositions, 3));
 
-        // Rotation
-        const adjustedRotations = rotations.subarray(0, sampledCount * 3);
-        pointsGeometry.setAttribute('aRotation', new THREE.BufferAttribute(adjustedRotations, 3));
+        // // Rotation
+        // const adjustedRotations = rotations.subarray(0, sampledCount * 3);
+        // pointsGeometry.setAttribute('aRotation', new THREE.BufferAttribute(adjustedRotations, 3));
 
-        // Scale
-        const adjustedScales = scales.subarray(0, sampledCount);
-        pointsGeometry.setAttribute('aScale', new THREE.BufferAttribute(adjustedScales, 1));
+        // // Scale
+        // const adjustedScales = scales.subarray(0, sampledCount);
+        // pointsGeometry.setAttribute('aScale', new THREE.BufferAttribute(adjustedScales, 1));
 
         return points = new THREE.Points(pointsGeometry, this.params.material);
 
@@ -78,7 +82,7 @@ export default class Spice {
     }
 
     // Surface Sampler
-    #samplePoints(startPercentage, endPercentage, density, top = false) {
+    #samplePoints(startPercentage, endPercentage, density, top = true) {
 
 
         if(this.jar.geometry.boundingBox) {
@@ -92,10 +96,12 @@ export default class Spice {
         const count = Math.floor(density * (endPercentage - startPercentage))
         const sampler = new MeshSurfaceSampler(this.jar).build();
         const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
         const rotations = new Float32Array(count * 3);
         const normals = new Float32Array(count * 3);
         const scales = new Float32Array(count);
         const rotation = new THREE.Vector3(); 
+        const color = new THREE.Vector3(); 
         const position = new THREE.Vector3();
         const normal = new THREE.Vector3();
 
@@ -182,14 +188,17 @@ export default class Spice {
         //         continue; // Skip this point if it collides with any previously sampled point
         //     }
         //  }
+
+
   
             // Set
+            colors.set([color.x, color.y, color.z], sampledCount * 3);
             positions.set([position.x, position.y, position.z], sampledCount * 3);
             normals.set([normal.x, normal.y, normal.z], sampledCount * 3);
             sampledCount++;
         }
 
-        return { scales, positions, rotations, normals, sampledCount };
+        return { scales, positions, rotations, normals, colors, sampledCount };
     }
 
 }

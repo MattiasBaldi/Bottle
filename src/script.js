@@ -10,6 +10,7 @@ import Spice from './spice.js'
 import mixedSpices from './mixedSpices.js'
 import { MeshTransmissionMaterial } from '@pmndrs/vanilla'
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 
 /**
  * Base
@@ -298,44 +299,53 @@ bottleFolder.add(glassMaterial, 'ior').min(1).max(2.33).step(0.01).name('IOR')
  */
 const createShaderMaterial = 
 ({
-    uSize = null, 
-    uSprite = null, 
+    size = null, 
+    sprite = null, 
 }) => 
 {
 
 const shader = new THREE.ShaderMaterial
 ({
 
+    // baseMaterial: THREE.PointsMaterial, // Pass baseMaterial as a parameter here
+    // size: size,
+    // sizeAttenuation: true,
+    // transparent: true,
+    // depthWrite: true,
+    // alphaTest: 0.9,
+    // blending: THREE.NormalBlending,
+
     vertexShader: spritesVertexShader, 
     fragmentShader: spritesFragmentShader,
+
+    // size: size,
+    // sizeAttenuation: true,
+    // transparent: true,
+    // depthWrite: true,
+    // alphaTest: 0.9,
+    // blending: THREE.NormalBlending,
+
+    
+    
     uniforms: 
     {
-        uSize: new THREE.Uniform(100 * renderer.getPixelRatio()), // Size will be updated when particle size changes
+    // Textures || Sprites
+    uMap: sprite,
+    scale: new THREE.Uniform(1.0), 
+    // uNormal: new THREE.Uniform(uSprite),
+    // uDisplacement: new THREE.Uniform(uSprite),
+    // uRoughness: new THREE.Uniform(uSprite),
 
-        // Vibrance
-        uSaturation: new THREE.Uniform(1.0),
-        uBrightness: new THREE.Uniform(1.0),
+    // Vibrance
+    // uSaturation: new THREE.Uniform(1.0),
+    // uBrightness: new THREE.Uniform(1.0),
 
-        // Textures || Sprites
-        uSprite: new THREE.Uniform(uSprite),
-        // uNormal: new THREE.Uniform(uSprite),
-        // uDisplacement: new THREE.Uniform(uSprite),
-        // uRoughness: new THREE.Uniform(uSprite),
-
-        // Details
-        uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
-        uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
-        uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
-        uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
+    // // Details
+    // uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
+    // uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
+    // uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
+    // uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
     },
-
-
-    transparent: true,
-    alphaTest: 0.9, 
-    depthTest: true, 
-    depthWrite: false,
-    vertexColors: true,
-    blending: THREE.NormalBlending,
 })
 
 return shader
@@ -343,28 +353,21 @@ return shader
 
 const spices = 
 {
-    
-    POINTS_chiliPowder_CustomShader:
+
+    INSTANCES_chiliPowder:
     {
-        type: 'sprite', // Determine what is used
-        density: 1000,
+    type: 'instance', // Determine what is used
+    mesh: spiceModels.scene.getObjectByName('chili'),
 
-        selfCollisionDistance: 0.2, 
-        
-        size: 1,
-        sizeRandomize: 0.01, 
+    density: 1000,
 
-        rotation: new THREE.Vector3(1, 1, 1),
-        rotationRandomize: 0.7,
+    selfCollisionDistance: 0.2, 
+    
+    size: 0.1,
+    sizeRandomize: 0.01, 
 
-        material: createShaderMaterial({
-            spriteTextureOne: sprites.chili.one, 
-            spritePercentageOne: 0.3,
-            spriteTextureTwo: sprites.chili.two, 
-            spritePercentageTwo: 0.3,
-            spriteTextureThree: sprites.chili.three, 
-            spritePercentageThree: 0.3
-        })
+    rotation: new THREE.Vector3(1, 1, 1),
+    rotationRandomize: 0.7,
     },
 
     POINTS_powder_customShader:
@@ -381,8 +384,8 @@ const spices =
         rotationRandomize: 0.7,
 
         material: createShaderMaterial({
-            spriteTextureOne: sprites.powder,
-            spritePercentageOne: 1.0,
+            size: 1.0,
+            sprite: sprites.powder,
         })
     },
 
@@ -405,7 +408,7 @@ const spices =
             map: sprites.powder,
             size: 0.4,
             transparent: true,
-            depthWrite: false,
+            depthWrite: true,
             alphaTest: 0.9, 
         })
     },
@@ -429,7 +432,7 @@ const spices =
             map: sprites.chiliPowder,
             size: 0.4,
             transparent: true,
-            depthWrite: false,
+            depthWrite: true,
             alphaTest: 0.9, 
         })
     },
@@ -482,7 +485,7 @@ function calculatePoints(spice, startPercentage, endPercentage)
         group.add(spice.points);
 
 
-        recalculateTop();
+        // recalculateTop();
 }
 
 function recalculateTop() {
@@ -758,16 +761,46 @@ const createOptimizeButton = () => {
     const button = spicesFolder.add({ optimize: () => {
         if (spicesInJar > 0) {
 
-            // Give the jar a spin using GSAP
-            const spinDuration = 1; // duration in seconds
-            const spinAngle = Math.PI * 2; // 360 degrees
-            
+            // Shake the jar using GSAP
+            const shakeDuration = 1.5; // duration in seconds
+            const shakeIntensity = 0.5; // intensity of the shake
+            const rotationIntensity = -0.5; // intensity of the rotation
+            const speed = 2; // speed multiplier
+
+            // Temporarily blur the jar contents
+            const originalDepthWrite = glassMaterial.depthWrite;
+            const originalDepthTest = glassMaterial.depthTest;
+            const originalOpacity = glassMaterial.opacity;
+
+            glassMaterial.depthWrite = false;
+            glassMaterial.depthTest = false;
+
+            gsap.to(group.position, {
+                x: `+=${shakeIntensity}`,
+                y: `+=${shakeIntensity}`,
+                z: `+=${shakeIntensity}`,
+                duration: (shakeDuration / 4) / speed,
+                repeat: 3,
+                yoyo: true,
+                ease: "power1.inOut",
+            });
+
             gsap.to(group.rotation, {
-                y: group.rotation.y + spinAngle, // Rotate around Y axis (vertical)
-                duration: spinDuration,
+                x: `+=${rotationIntensity}`,
+                y: `+=${rotationIntensity}`,
+                z: `+=${rotationIntensity}`,
+                duration: (shakeDuration / 4) / speed,
+                repeat: 3,
+                yoyo: true,
                 ease: "power1.inOut",
                 onComplete: () => {
+                    // Restore the jar material properties
+                    glassMaterial.depthWrite = originalDepthWrite;
+                    glassMaterial.depthTest = originalDepthTest;
+                    glassMaterial.opacity = originalOpacity;
+
                     // Mix spices after animation completes
+                    createPoofEffect();
                     mixSpices();
                     jar.label = addLabel(jar, 'white', 'TEST'); 
                     group.add(jar.label);
@@ -793,6 +826,7 @@ const createOptimizeButton = () => {
                     panel.addButton = null; 
                 }
             });
+
         } else {
             console.log('No spices in the jar to optimize');
         }
@@ -803,6 +837,7 @@ const createOptimizeButton = () => {
 
 // reset button
 const createResetButton = () => {
+
     // Destroy all existing buttons in spice.folder
     spicesFolder.children.forEach(child => child.destroy());
 
@@ -825,9 +860,72 @@ const createResetButton = () => {
         // Recreate the spice dropdown
         if(!panel.addButton)
             panel.addButton = createAddButton();
+
+        
     }}, 'reset').name('Reset');
     return button;
 };
+
+function createPoofEffect() {
+    // Create a temporary particle system
+    const particleCount = 1000;
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+    
+    // Set random positions around the jar
+    for (let i = 0; i < particleCount; i++) {
+        const radius = 0.5 + Math.random() * 0.3;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.random() * Math.PI;
+        
+        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = jar.position.y + Math.random() * 0.5; 
+        positions[i * 3 + 2] = radius * Math.sin(phi) * Math.sin(theta);
+        
+        // White particles with random alpha
+        colors[i * 3] = 1;
+        colors[i * 3 + 1] = 1;
+        colors[i * 3 + 2] = 1;
+    }
+    
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    
+    const material = new THREE.PointsMaterial({
+        color: 'yellow', 
+        size: 0.05,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8
+    });
+    
+    const particles = new THREE.Points(geometry, material);
+    scene.add(particles);
+    
+    // Animate particles outward and fade
+    gsap.to(material, {
+        opacity: 0,
+        duration: 1.5,
+        onComplete: () => {
+            scene.remove(particles);
+            geometry.dispose();
+            material.dispose();
+        }
+    });
+    
+    gsap.to(positions, {
+        duration: 1.5,
+        onUpdate: () => {
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] *= 1.02;
+                positions[i * 3 + 1] *= 1.01; 
+                positions[i * 3 + 2] *= 1.02;
+            }
+            geometry.attributes.position.needsUpdate = true;
+        }
+    });
+}
 
 // init panel
 panel.addButton = createAddButton();

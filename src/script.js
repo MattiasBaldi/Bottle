@@ -10,7 +10,6 @@ import Spice from './spice.js'
 import mixedSpices from './mixedSpices.js'
 import { MeshTransmissionMaterial } from '@pmndrs/vanilla'
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
-import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 
 /**
  * Base
@@ -297,59 +296,85 @@ bottleFolder.add(glassMaterial, 'ior').min(1).max(2.33).step(0.01).name('IOR')
 /**
  * Spices
  */
-const createShaderMaterial = 
-({
-    size = null, 
-    sprite = null, 
-}) => 
-{
+// const createShaderMaterial = 
+// ({
+//     size = null, 
+//     sprite = null, 
+// }) => 
+// {
 
-const shader = new THREE.ShaderMaterial
-({
+// const shader = new THREE.ShaderMaterial
+// ({
 
-    // baseMaterial: THREE.PointsMaterial, // Pass baseMaterial as a parameter here
-    // size: size,
-    // sizeAttenuation: true,
-    // transparent: true,
-    // depthWrite: true,
-    // alphaTest: 0.9,
-    // blending: THREE.NormalBlending,
+//     // baseMaterial: THREE.PointsMaterial, // Pass baseMaterial as a parameter here
+//     // size: size,
+//     // sizeAttenuation: true,
+//     // transparent: true,
+//     // depthWrite: true,
+//     // alphaTest: 0.9,
+//     // blending: THREE.NormalBlending,
 
-    vertexShader: spritesVertexShader, 
-    fragmentShader: spritesFragmentShader,
+//     vertexShader: spritesVertexShader, 
+//     fragmentShader: spritesFragmentShader,
 
-    // size: size,
-    // sizeAttenuation: true,
-    // transparent: true,
-    // depthWrite: true,
-    // alphaTest: 0.9,
-    // blending: THREE.NormalBlending,
-
+//     // size: size,
+//     // sizeAttenuation: true,
+//     // transparent: true,
+//     // depthWrite: true,
+//     // alphaTest: 0.9,
+//     // blending: THREE.NormalBlending,
     
     
-    uniforms: 
-    {
-    // Textures || Sprites
-    uMap: sprite,
-    scale: new THREE.Uniform(1.0), 
-    // uNormal: new THREE.Uniform(uSprite),
-    // uDisplacement: new THREE.Uniform(uSprite),
-    // uRoughness: new THREE.Uniform(uSprite),
+//     uniforms: 
+//     {
+//     // Textures || Sprites
+//     uMap: sprite,
+//     scale: new THREE.Uniform(1.0), 
+//     // uNormal: new THREE.Uniform(uSprite),
+//     // uDisplacement: new THREE.Uniform(uSprite),
+//     // uRoughness: new THREE.Uniform(uSprite),
 
-    // Vibrance
-    // uSaturation: new THREE.Uniform(1.0),
-    // uBrightness: new THREE.Uniform(1.0),
+//     // Vibrance
+//     // uSaturation: new THREE.Uniform(1.0),
+//     // uBrightness: new THREE.Uniform(1.0),
 
-    // // Details
-    // uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
-    // uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
-    // uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
-    // uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
-    },
-})
+//     // // Details
+//     // uEdgeSoftness: new THREE.Uniform(0.5), // Controls the blur at the edges to simulate powdered vs. granular spices.
+//     // uNoiseIntensity: new THREE.Uniform(0.5), // use procedural noise instead of large noise textures.
+//     // uSpecular: new THREE.Uniform(0.5), // Adds slight highlights for glossy spices like peppercorns. For shiny spices like seeds but reduce the number of specular calculations in the shader.
+//     // uSubsurface: new THREE.Uniform(0.5) // Mimics light scattering through spices like turmeric.
+//     },
+// })
 
-return shader
-}
+// const material = new THREE.PointsMaterial({
+    
+//     map: sprite,
+//     size: size,
+//     sizeAttenuation: true,
+//     transparent: true,
+//     depthWrite: true,
+//     alphaTest: 0.9,
+//     blending: THREE.NormalBlending,
+
+// })
+
+// material.onBeforeCompile = (shader) =>
+//     {
+//     shader.vertexShader = shader.vertexShader.replace(
+//         '',
+//         `
+//         `)
+
+//     shader.fragmentShader = shader.vertexShader.replace(
+//     '',
+//     `
+//     `)
+//     }
+
+// return material
+
+
+// }
 
 const spices = 
 {
@@ -370,24 +395,24 @@ const spices =
     rotationRandomize: 0.7,
     },
 
-    POINTS_powder_customShader:
-    {
-        type: 'sprite', // Determine what is used
-        density: 1000,
+    // POINTS_powder_customShader:
+    // {
+    //     type: 'sprite', // Determine what is used
+    //     density: 1000,
 
-        selfCollisionDistance: 0.2, 
+    //     selfCollisionDistance: 0.2, 
         
-        size: 1,
-        sizeRandomize: 0.01, 
+    //     size: 1,
+    //     sizeRandomize: 0.01, 
 
-        rotation: new THREE.Vector3(1, 1, 1),
-        rotationRandomize: 0.7,
+    //     rotation: new THREE.Vector3(1, 1, 1),
+    //     rotationRandomize: 0.7,
 
-        material: createShaderMaterial({
-            size: 1.0,
-            sprite: sprites.powder,
-        })
-    },
+    //     material: createShaderMaterial({
+    //         size: 1.0,
+    //         sprite: sprites.powder,
+    //     })
+    // },
 
     POINTS_powder_PointsMaterial:
     {

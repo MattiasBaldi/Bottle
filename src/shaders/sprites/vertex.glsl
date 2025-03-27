@@ -9,11 +9,37 @@ attribute vec3 color;
 
 varying vec3 vNormal; 
 varying vec3 vPosition; 
-#ifdef USE_COLOR
-  varying vec3 vColor;
+
+#include <common>
+#include <color_pars_vertex>
+#include <fog_pars_vertex>
+#include <morphtarget_pars_vertex>
+#include <logdepthbuf_pars_vertex>
+#include <clipping_planes_pars_vertex>
+
+#ifdef USE_POINTS_UV
+
+	varying vec2 vUv;
+	uniform mat3 uvTransform;
+
 #endif
 
 void main() {
+
+
+    #ifdef USE_POINTS_UV
+
+      vUv = ( uvTransform * vec3( uv, 1 ) ).xy;
+
+    #endif
+
+    #include <color_vertex>
+    #include <morphinstance_vertex>
+    #include <morphcolor_vertex>
+    #include <begin_vertex>
+    #include <morphtarget_vertex>
+    #include <project_vertex>
+
     // Position
     vec4 modelPosition = modelMatrix * vec4(position, 1.0);
     vec4 viewPosition = viewMatrix * modelPosition;
@@ -23,6 +49,7 @@ void main() {
     // Size with attenuation
     gl_PointSize = aScale * uSize;
     gl_PointSize *= (scale / -viewPosition.z);
+
     
     // Pass varying values
     vPosition = position; 
